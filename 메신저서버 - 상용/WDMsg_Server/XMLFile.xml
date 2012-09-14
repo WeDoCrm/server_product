@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Root>
+  <AppDBCfg>
+    <item key="ConnStr" value="user id=hr;password=genesys;data source=211.52.153.160:1521/XE;"></item>
+    <item key="GetMemList" value="select user_cd, user_nm, team_cd from tbl_user_inf where team_cd not like '19'"></item>
+  </AppDBCfg>
+  <MsgDBCfg>
+    <item key="ConnStr" value="user id=hr;password=genesys;data source=211.52.153.160:1521/XE;"></item>
+  </MsgDBCfg>
+  <TeamCfg>
+    <item key="01" value="운영팀" visible="true"></item>
+    <item key="11" value="지원팀" visible="true"></item>
+    <item key="12" value="기쁨팀" visible="true"></item>
+    <item key="13" value="사랑팀" visible="true"></item>
+    <item key="14" value="행복팀" visible="true"></item>
+    <item key="15" value="캠페인" visible="true"></item>
+    <item key="16" value="고객운영" visible="true"></item>
+    <item key="17" value="파트타임" visible="true"></item>
+    <item key="18" value="교육생" visible="true"></item>
+    <item key="19" value="퇴사" visible="true"></item>
+    <item key="20" value="추석알바" visible="true"></item>
+  </TeamCfg>
+</Root>

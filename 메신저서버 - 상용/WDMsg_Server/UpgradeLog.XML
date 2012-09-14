@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="EXMsgServer">
+</Property><Property Name="솔루션 파일" Value="C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\EXMsgServer.sln">
+</Property><Property Name="사용자 옵션 파일" Value="C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\EXMsgServer.suo">
+</Property><Property Name="Date" Value="2010년 3월 8일 월요일">
+</Property><Property Name="Time" Value="오후 17:47">
+</Property></Properties><Event ErrorLevel="0" Project="" Source="EXMsgServer.sln" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\EXMsgServer.sln(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="" Source="EXMsgServer.suo" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\EXMsgServer.suo(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="EXMsgServer.csproj" Description="프로젝트 파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\EXMsgServer.csproj(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="AddMemberForm.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\AddMemberForm.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="AddMemberForm.Designer.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\AddMemberForm.Designer.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="AddTeamForm.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\AddTeamForm.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="AddTeamForm.Designer.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\AddTeamForm.Designer.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="Client.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\Client.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="DBInfoForm.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\DBInfoForm.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="DBInfoForm.Designer.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\DBInfoForm.Designer.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="MemberListForm.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\MemberListForm.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="MemberListForm.Designer.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\MemberListForm.Designer.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="MsgSvrForm.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\MsgSvrForm.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="MsgSvrForm.Designer.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\MsgSvrForm.Designer.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="Program.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\Program.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="Properties\AssemblyInfo.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\Properties\AssemblyInfo.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="Properties\Resources.Designer.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\Properties\Resources.Designer.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="Properties\Settings.Designer.cs" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\Properties\Settings.Designer.cs(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="app.config" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\app.config(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="Properties\Settings.settings" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\Properties\Settings.settings(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="AddMemberForm.resx" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\AddMemberForm.resx(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="AddTeamForm.resx" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\AddTeamForm.resx(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="DBInfoForm.resx" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\DBInfoForm.resx(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="MemberListForm.resx" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\MemberListForm.resx(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="MsgSvrForm.resx" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\MsgSvrForm.resx(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="Properties\Resources.resx" Description="파일을 C:\Users\bskim\개발\도로공사\EXMsg_Server\EXMsg_Server\Backup\Properties\Resources.resx(으)로 백업했습니다.">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="EXMsgServer.csproj" Description="프로젝트를 변환했습니다.">
+</Event><Event ErrorLevel="3" Project="EXMsgServer" Source="EXMsgServer.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="EXMsgServer.sln" Description="솔루션을 변환했습니다.">
+</Event><Event ErrorLevel="3" Project="" Source="EXMsgServer.sln" Description="Converted">
+</Event><Event ErrorLevel="0" Project="EXMsgServer" Source="EXMsgServer.csproj" Description="검사 완료: 프로젝트 파일을 업그레이드할 필요가 없습니다.">
+</Event></UpgradeLog>
