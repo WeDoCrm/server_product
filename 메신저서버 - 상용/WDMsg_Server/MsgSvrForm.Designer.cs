@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MsgSvrForm));
             this.start = new System.Windows.Forms.Button();
             this.stop = new System.Windows.Forms.Button();
@@ -36,18 +37,21 @@
             this.MnControl = new System.Windows.Forms.ToolStripMenuItem();
             this.MnServerStart = new System.Windows.Forms.ToolStripMenuItem();
             this.MnServerStop = new System.Windows.Forms.ToolStripMenuItem();
-            this.MnAddMember = new System.Windows.Forms.ToolStripMenuItem();
-            this.MnAddTeam = new System.Windows.Forms.ToolStripMenuItem();
-            this.MnServerFormClose = new System.Windows.Forms.ToolStripMenuItem();
             this.MnView = new System.Windows.Forms.ToolStripMenuItem();
             this.MnDBSetting = new System.Windows.Forms.ToolStripMenuItem();
-            this.button1 = new System.Windows.Forms.Button();
+            this.StripMenu_svrconfig = new System.Windows.Forms.ToolStripMenuItem();
+            this.콜테스트ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.notify_svr = new System.Windows.Forms.NotifyIcon(this.components);
+            this.MnStrip_noti = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.보이기ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.서버종료ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
+            this.MnStrip_noti.SuspendLayout();
             this.SuspendLayout();
             // 
             // start
             // 
-            this.start.Location = new System.Drawing.Point(188, 49);
+            this.start.Location = new System.Drawing.Point(188, 33);
             this.start.Name = "start";
             this.start.Size = new System.Drawing.Size(75, 27);
             this.start.TabIndex = 0;
@@ -57,7 +61,7 @@
             // 
             // stop
             // 
-            this.stop.Location = new System.Drawing.Point(341, 49);
+            this.stop.Location = new System.Drawing.Point(341, 33);
             this.stop.Name = "stop";
             this.stop.Size = new System.Drawing.Size(75, 27);
             this.stop.TabIndex = 1;
@@ -70,12 +74,12 @@
             this.LogBox.BackColor = System.Drawing.Color.Black;
             this.LogBox.Font = new System.Drawing.Font("Verdana", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.LogBox.ForeColor = System.Drawing.Color.White;
-            this.LogBox.Location = new System.Drawing.Point(12, 124);
+            this.LogBox.Location = new System.Drawing.Point(12, 69);
             this.LogBox.Multiline = true;
             this.LogBox.Name = "LogBox";
             this.LogBox.ReadOnly = true;
             this.LogBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.LogBox.Size = new System.Drawing.Size(620, 435);
+            this.LogBox.Size = new System.Drawing.Size(620, 490);
             this.LogBox.TabIndex = 6;
             // 
             // menuStrip1
@@ -94,10 +98,7 @@
             // 
             this.MnControl.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.MnServerStart,
-            this.MnServerStop,
-            this.MnAddMember,
-            this.MnAddTeam,
-            this.MnServerFormClose});
+            this.MnServerStop});
             this.MnControl.Name = "MnControl";
             this.MnControl.Size = new System.Drawing.Size(59, 20);
             this.MnControl.Text = "제어(&C)";
@@ -105,59 +106,77 @@
             // MnServerStart
             // 
             this.MnServerStart.Name = "MnServerStart";
-            this.MnServerStart.Size = new System.Drawing.Size(154, 22);
+            this.MnServerStart.Size = new System.Drawing.Size(143, 22);
             this.MnServerStart.Text = "서버 시작(&S)";
+            this.MnServerStart.Click += new System.EventHandler(this.MnServerStart_Click);
             // 
             // MnServerStop
             // 
             this.MnServerStop.Name = "MnServerStop";
-            this.MnServerStop.Size = new System.Drawing.Size(154, 22);
+            this.MnServerStop.Size = new System.Drawing.Size(143, 22);
             this.MnServerStop.Text = "서버 중지(&O)";
-            // 
-            // MnAddMember
-            // 
-            this.MnAddMember.Enabled = false;
-            this.MnAddMember.Name = "MnAddMember";
-            this.MnAddMember.Size = new System.Drawing.Size(154, 22);
-            this.MnAddMember.Text = "사용자 추가(&A)";
-            // 
-            // MnAddTeam
-            // 
-            this.MnAddTeam.Enabled = false;
-            this.MnAddTeam.Name = "MnAddTeam";
-            this.MnAddTeam.Size = new System.Drawing.Size(154, 22);
-            this.MnAddTeam.Text = "소속 추가(&T)";
-            // 
-            // MnServerFormClose
-            // 
-            this.MnServerFormClose.Name = "MnServerFormClose";
-            this.MnServerFormClose.Size = new System.Drawing.Size(154, 22);
-            this.MnServerFormClose.Text = "닫기(&C)";
+            this.MnServerStop.Click += new System.EventHandler(this.MnServerStop_Click);
             // 
             // MnView
             // 
             this.MnView.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.MnDBSetting});
+            this.MnDBSetting,
+            this.StripMenu_svrconfig,
+            this.콜테스트ToolStripMenuItem});
             this.MnView.Name = "MnView";
-            this.MnView.Size = new System.Drawing.Size(59, 20);
-            this.MnView.Text = "보기(&V)";
+            this.MnView.Size = new System.Drawing.Size(58, 20);
+            this.MnView.Text = "설정(&S)";
             // 
             // MnDBSetting
             // 
             this.MnDBSetting.Name = "MnDBSetting";
-            this.MnDBSetting.Size = new System.Drawing.Size(135, 22);
+            this.MnDBSetting.Size = new System.Drawing.Size(162, 22);
             this.MnDBSetting.Text = "DB 설정(&O)";
             this.MnDBSetting.Click += new System.EventHandler(this.MnDBSetting_Click);
             // 
-            // button1
+            // StripMenu_svrconfig
             // 
-            this.button1.Location = new System.Drawing.Point(542, 95);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(75, 23);
-            this.button1.TabIndex = 9;
-            this.button1.Text = "콜테스트";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.StripMenu_svrconfig.Name = "StripMenu_svrconfig";
+            this.StripMenu_svrconfig.Size = new System.Drawing.Size(162, 22);
+            this.StripMenu_svrconfig.Text = "통신환경설정(&C)";
+            this.StripMenu_svrconfig.Click += new System.EventHandler(this.StripMenu_svrconfig_Click);
+            // 
+            // 콜테스트ToolStripMenuItem
+            // 
+            this.콜테스트ToolStripMenuItem.Name = "콜테스트ToolStripMenuItem";
+            this.콜테스트ToolStripMenuItem.Size = new System.Drawing.Size(162, 22);
+            this.콜테스트ToolStripMenuItem.Text = "콜테스트";
+            this.콜테스트ToolStripMenuItem.Click += new System.EventHandler(this.콜테스트ToolStripMenuItem_Click);
+            // 
+            // notify_svr
+            // 
+            this.notify_svr.ContextMenuStrip = this.MnStrip_noti;
+            this.notify_svr.Icon = ((System.Drawing.Icon)(resources.GetObject("notify_svr.Icon")));
+            this.notify_svr.Text = "WeDo서버";
+            this.notify_svr.Visible = true;
+            this.notify_svr.MouseClick += new System.Windows.Forms.MouseEventHandler(this.notify_svr_MouseClick);
+            // 
+            // MnStrip_noti
+            // 
+            this.MnStrip_noti.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.보이기ToolStripMenuItem,
+            this.서버종료ToolStripMenuItem});
+            this.MnStrip_noti.Name = "MnStrip_noti";
+            this.MnStrip_noti.Size = new System.Drawing.Size(139, 48);
+            // 
+            // 보이기ToolStripMenuItem
+            // 
+            this.보이기ToolStripMenuItem.Name = "보이기ToolStripMenuItem";
+            this.보이기ToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
+            this.보이기ToolStripMenuItem.Text = "보이기(&V)";
+            this.보이기ToolStripMenuItem.Click += new System.EventHandler(this.보이기ToolStripMenuItem_Click);
+            // 
+            // 서버종료ToolStripMenuItem
+            // 
+            this.서버종료ToolStripMenuItem.Name = "서버종료ToolStripMenuItem";
+            this.서버종료ToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
+            this.서버종료ToolStripMenuItem.Text = "서버종료(&C)";
+            this.서버종료ToolStripMenuItem.Click += new System.EventHandler(this.서버종료ToolStripMenuItem_Click);
             // 
             // MsgSvrForm
             // 
@@ -165,21 +184,26 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Control;
             this.ClientSize = new System.Drawing.Size(638, 568);
-            this.Controls.Add(this.button1);
             this.Controls.Add(this.LogBox);
             this.Controls.Add(this.stop);
             this.Controls.Add(this.start);
             this.Controls.Add(this.menuStrip1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.MinimumSize = new System.Drawing.Size(654, 606);
             this.Name = "MsgSvrForm";
+            this.ShowInTaskbar = false;
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "WeDo 메신저 서버";
+            this.Text = "WeDo CTI 서버";
+            this.MinimumSizeChanged += new System.EventHandler(this.MsgSvrForm_MinimumSizeChanged);
             this.Load += new System.EventHandler(this.MsgSvrForm_Load);
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MsgSvrForm_FormClosing);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
+            this.MnStrip_noti.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -195,11 +219,13 @@
         private System.Windows.Forms.ToolStripMenuItem MnServerStart;
         private System.Windows.Forms.ToolStripMenuItem MnServerStop;
         private System.Windows.Forms.ToolStripMenuItem MnView;
-        private System.Windows.Forms.ToolStripMenuItem MnServerFormClose;
-        private System.Windows.Forms.ToolStripMenuItem MnAddMember;
-        private System.Windows.Forms.ToolStripMenuItem MnAddTeam;
-        private System.Windows.Forms.Button button1;
         private System.Windows.Forms.ToolStripMenuItem MnDBSetting;
+        private System.Windows.Forms.ToolStripMenuItem StripMenu_svrconfig;
+        private System.Windows.Forms.ToolStripMenuItem 콜테스트ToolStripMenuItem;
+        private System.Windows.Forms.NotifyIcon notify_svr;
+        private System.Windows.Forms.ContextMenuStrip MnStrip_noti;
+        private System.Windows.Forms.ToolStripMenuItem 보이기ToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem 서버종료ToolStripMenuItem;
     }
 }
 

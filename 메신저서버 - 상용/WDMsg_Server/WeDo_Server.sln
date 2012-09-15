@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeDo_Server", "WeDo_Server.csproj", "{D0F74C5D-74EF-42FE-8257-07DBE2D3FFB5}"
+EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "WDServer Setup", "..\WDServer_Setup\WDServer_Setup.vdproj", "{827D3BBB-7CAE-497A-A470-0F9B0E83B14A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D0F74C5D-74EF-42FE-8257-07DBE2D3FFB5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0F74C5D-74EF-42FE-8257-07DBE2D3FFB5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0F74C5D-74EF-42FE-8257-07DBE2D3FFB5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0F74C5D-74EF-42FE-8257-07DBE2D3FFB5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{827D3BBB-7CAE-497A-A470-0F9B0E83B14A}.Debug|Any CPU.ActiveCfg = Debug
+		{827D3BBB-7CAE-497A-A470-0F9B0E83B14A}.Release|Any CPU.ActiveCfg = Release
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		VSCustomBkgrdPaint = False
+		VSUseSystemFonts = False
+		VSSkinToggleButtons = True
+		VSSkinFlatStyles = True
+		VSTextShadow = True
+		VSToolStripStyle = Mixed
+		VSTargetControls = FormsAndControls
+		VSStyle = Office2007 (Black).vssf
+	EndGlobalSection
+EndGlobal

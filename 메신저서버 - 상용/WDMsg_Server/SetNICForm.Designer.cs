@@ -28,23 +28,25 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SetNICForm));
             this.btn_comfirm = new System.Windows.Forms.Button();
             this.btn_cancel = new System.Windows.Forms.Button();
             this.comboBox1 = new System.Windows.Forms.ComboBox();
             this.label1 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.rbt_type_cid = new System.Windows.Forms.RadioButton();
-            this.rbt_type_ss = new System.Windows.Forms.RadioButton();
+            this.rbt_type_cid1 = new System.Windows.Forms.RadioButton();
             this.rbt_type_lg = new System.Windows.Forms.RadioButton();
             this.rbt_type_sip = new System.Windows.Forms.RadioButton();
+            this.rbt_type_ss = new System.Windows.Forms.RadioButton();
             this.label_COM_CODE = new System.Windows.Forms.Label();
             this.tbx_com_code = new System.Windows.Forms.TextBox();
+            this.rbt_type_cid2 = new System.Windows.Forms.RadioButton();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
             // btn_comfirm
             // 
-            this.btn_comfirm.Location = new System.Drawing.Point(83, 159);
+            this.btn_comfirm.Location = new System.Drawing.Point(108, 159);
             this.btn_comfirm.Name = "btn_comfirm";
             this.btn_comfirm.Size = new System.Drawing.Size(75, 23);
             this.btn_comfirm.TabIndex = 0;
@@ -53,7 +55,7 @@
             // 
             // btn_cancel
             // 
-            this.btn_cancel.Location = new System.Drawing.Point(190, 159);
+            this.btn_cancel.Location = new System.Drawing.Point(215, 159);
             this.btn_cancel.Name = "btn_cancel";
             this.btn_cancel.Size = new System.Drawing.Size(75, 23);
             this.btn_cancel.TabIndex = 1;
@@ -67,7 +69,7 @@
             ":::::::::::::::::선 택::::::::::::::::::::"});
             this.comboBox1.Location = new System.Drawing.Point(75, 123);
             this.comboBox1.Name = "comboBox1";
-            this.comboBox1.Size = new System.Drawing.Size(268, 20);
+            this.comboBox1.Size = new System.Drawing.Size(295, 20);
             this.comboBox1.TabIndex = 2;
             // 
             // label1
@@ -81,27 +83,52 @@
             // 
             // groupBox1
             // 
-            this.groupBox1.Controls.Add(this.rbt_type_cid);
+            this.groupBox1.Controls.Add(this.rbt_type_cid2);
+            this.groupBox1.Controls.Add(this.rbt_type_cid1);
             this.groupBox1.Controls.Add(this.rbt_type_lg);
             this.groupBox1.Controls.Add(this.rbt_type_sip);
             this.groupBox1.Location = new System.Drawing.Point(20, 52);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(324, 50);
+            this.groupBox1.Size = new System.Drawing.Size(350, 50);
             this.groupBox1.TabIndex = 4;
             this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "교환기 타입";
+            this.groupBox1.Text = "전화장치 유형";
             // 
-            // rbt_type_cid
+            // rbt_type_cid1
             // 
-            this.rbt_type_cid.AutoSize = true;
-            this.rbt_type_cid.Location = new System.Drawing.Point(241, 23);
-            this.rbt_type_cid.Name = "rbt_type_cid";
-            this.rbt_type_cid.Size = new System.Drawing.Size(43, 16);
-            this.rbt_type_cid.TabIndex = 3;
-            this.rbt_type_cid.TabStop = true;
-            this.rbt_type_cid.Tag = "CID";
-            this.rbt_type_cid.Text = "CID";
-            this.rbt_type_cid.UseVisualStyleBackColor = true;
+            this.rbt_type_cid1.AutoSize = true;
+            this.rbt_type_cid1.Location = new System.Drawing.Point(170, 23);
+            this.rbt_type_cid1.Name = "rbt_type_cid1";
+            this.rbt_type_cid1.Size = new System.Drawing.Size(83, 16);
+            this.rbt_type_cid1.TabIndex = 3;
+            this.rbt_type_cid1.TabStop = true;
+            this.rbt_type_cid1.Tag = "CI1";
+            this.rbt_type_cid1.Text = "CID(1포트)";
+            this.rbt_type_cid1.UseVisualStyleBackColor = true;
+            // 
+            // rbt_type_lg
+            // 
+            this.rbt_type_lg.AutoSize = true;
+            this.rbt_type_lg.Location = new System.Drawing.Point(102, 23);
+            this.rbt_type_lg.Name = "rbt_type_lg";
+            this.rbt_type_lg.Size = new System.Drawing.Size(63, 16);
+            this.rbt_type_lg.TabIndex = 1;
+            this.rbt_type_lg.TabStop = true;
+            this.rbt_type_lg.Tag = "LG";
+            this.rbt_type_lg.Text = "LG키폰";
+            this.rbt_type_lg.UseVisualStyleBackColor = true;
+            // 
+            // rbt_type_sip
+            // 
+            this.rbt_type_sip.AutoSize = true;
+            this.rbt_type_sip.Location = new System.Drawing.Point(13, 23);
+            this.rbt_type_sip.Name = "rbt_type_sip";
+            this.rbt_type_sip.Size = new System.Drawing.Size(83, 16);
+            this.rbt_type_sip.TabIndex = 0;
+            this.rbt_type_sip.TabStop = true;
+            this.rbt_type_sip.Tag = "SIP";
+            this.rbt_type_sip.Text = "인터넷전화";
+            this.rbt_type_sip.UseVisualStyleBackColor = true;
             // 
             // rbt_type_ss
             // 
@@ -115,30 +142,6 @@
             this.rbt_type_ss.Text = "삼성키폰";
             this.rbt_type_ss.UseVisualStyleBackColor = true;
             this.rbt_type_ss.Visible = false;
-            // 
-            // rbt_type_lg
-            // 
-            this.rbt_type_lg.AutoSize = true;
-            this.rbt_type_lg.Location = new System.Drawing.Point(143, 23);
-            this.rbt_type_lg.Name = "rbt_type_lg";
-            this.rbt_type_lg.Size = new System.Drawing.Size(63, 16);
-            this.rbt_type_lg.TabIndex = 1;
-            this.rbt_type_lg.TabStop = true;
-            this.rbt_type_lg.Tag = "LG";
-            this.rbt_type_lg.Text = "LG키폰";
-            this.rbt_type_lg.UseVisualStyleBackColor = true;
-            // 
-            // rbt_type_sip
-            // 
-            this.rbt_type_sip.AutoSize = true;
-            this.rbt_type_sip.Location = new System.Drawing.Point(24, 23);
-            this.rbt_type_sip.Name = "rbt_type_sip";
-            this.rbt_type_sip.Size = new System.Drawing.Size(83, 16);
-            this.rbt_type_sip.TabIndex = 0;
-            this.rbt_type_sip.TabStop = true;
-            this.rbt_type_sip.Tag = "SIP";
-            this.rbt_type_sip.Text = "인터넷전화";
-            this.rbt_type_sip.UseVisualStyleBackColor = true;
             // 
             // label_COM_CODE
             // 
@@ -156,12 +159,24 @@
             this.tbx_com_code.Size = new System.Drawing.Size(100, 21);
             this.tbx_com_code.TabIndex = 0;
             // 
+            // rbt_type_cid2
+            // 
+            this.rbt_type_cid2.AutoSize = true;
+            this.rbt_type_cid2.Location = new System.Drawing.Point(259, 23);
+            this.rbt_type_cid2.Name = "rbt_type_cid2";
+            this.rbt_type_cid2.Size = new System.Drawing.Size(83, 16);
+            this.rbt_type_cid2.TabIndex = 4;
+            this.rbt_type_cid2.TabStop = true;
+            this.rbt_type_cid2.Tag = "CI2";
+            this.rbt_type_cid2.Text = "CID(2포트)";
+            this.rbt_type_cid2.UseVisualStyleBackColor = true;
+            // 
             // SetNICForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.ControlLightLight;
-            this.ClientSize = new System.Drawing.Size(357, 193);
+            this.ClientSize = new System.Drawing.Size(394, 193);
             this.Controls.Add(this.tbx_com_code);
             this.Controls.Add(this.rbt_type_ss);
             this.Controls.Add(this.label_COM_CODE);
@@ -171,9 +186,11 @@
             this.Controls.Add(this.btn_cancel);
             this.Controls.Add(this.btn_comfirm);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "SetNICForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "설정";
+            this.Text = "통신환경설정";
+            this.TopMost = true;
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.ResumeLayout(false);
@@ -190,9 +207,10 @@
         public System.Windows.Forms.GroupBox groupBox1;
         public System.Windows.Forms.RadioButton rbt_type_lg;
         public System.Windows.Forms.RadioButton rbt_type_sip;
-        public System.Windows.Forms.RadioButton rbt_type_cid;
+        public System.Windows.Forms.RadioButton rbt_type_cid1;
         public System.Windows.Forms.RadioButton rbt_type_ss;
         public System.Windows.Forms.Label label_COM_CODE;
         public System.Windows.Forms.TextBox tbx_com_code;
+        public System.Windows.Forms.RadioButton rbt_type_cid2;
     }
 }

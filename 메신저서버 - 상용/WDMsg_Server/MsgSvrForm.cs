@@ -11,7 +11,6 @@ using System.Threading;
 using System.IO;
 using System.IO.Ports;
 using System.Net;
-using System.Data.OracleClient;
 using System.Data.SqlClient;
 using System.Xml;
 using PacketDotNet;
@@ -51,8 +50,17 @@ namespace WDMsgServer
         //private string WDdbPass = null;
 
         //업데이트 서버 정보
+        private string FtpHost = null;
+        private string FtpUsername = null;
+        private string passwd = null;
+        private string version = null;
+        private string updaterDir = null;
+        private string tempFolder = null;
+        private int FtpPort = 0;
+        private bool noActive = false;
 
         private static System.Windows.Forms.Timer timerForLicense;
+        private System.Windows.Forms.Timer callLog_timer;
         private int listenport = 0;
         private int sendport = 0;
         private int checkport = 0;
@@ -74,10 +82,12 @@ namespace WDMsgServer
         private SetNICForm nicform = null;
         private CaptureDeviceList deviceList = null;
         private SerialPort serialport;
-        private string server_type;
-        private string server_device;
+        private string server_type = null;
+        private string server_device = null;
         private string com_code;
         private string com_name;
+        private int auto_start;
+        private bool WinPcap = false;
         private MySqlConnection conn_callog = new MySqlConnection();
         private MySqlConnection conn_ring = new MySqlConnection();
 
@@ -96,12 +106,14 @@ namespace WDMsgServer
         private Hashtable SocketList = new Hashtable();
         private ArrayList SendErrorList = new ArrayList();
         protected internal static string serverip = null;
-        private static DirectoryInfo di=null; //로그폴더
+        private DirectoryInfo di = null; //로그폴더
 
         public Hashtable InClientList = null;  //로그인 사용자 EndPoint정보 테이블(key=id, value=IPEndPoint)
         private Hashtable InClientStat = new Hashtable();
         private Hashtable ExtensionList = new Hashtable(); //로그인 사용자 내선리스트(key = 내선번호, value = IPEndPoint)
         private Hashtable CallLogTable = new Hashtable();
+        private Hashtable ClientInfoList = new Hashtable();
+        private Hashtable ExtensionIDpair = new Hashtable();//내선과 id 정보 테이블
 
         private ArrayList TeamList = new ArrayList();  //구성 : M|팀이름|id|이름|....
         private UdpClient filesock = null;
@@ -121,6 +133,7 @@ namespace WDMsgServer
         private static bool serviceStart = false;
         private string MACID = null;
         Process winp;
+        private VersionCheckForm versioncheckform = null;
 
         delegate void stringDele(string str);
         delegate void ringingDele(string st1, string st2, string st3);
@@ -134,10 +147,6 @@ namespace WDMsgServer
             try
             {
                 InitializeComponent();
-                svr_FileCheck();                        //로그파일, 폴더 생성
-                logWrite("svr_FileCheck() 완료!");
-                loadConfigData();
-                commctl.OnEvent += new CommCtl.CommCtl_MessageDelegate(RecvMessage);
             }
             catch (Exception ex)
             {
@@ -147,18 +156,74 @@ namespace WDMsgServer
 
         private void MsgSvrForm_Load(object sender, EventArgs e)
         {
+            svr_FileCheck();                        //로그파일, 폴더 생성
+            logWrite("svr_FileCheck() 완료!");
+            commctl.OnEvent += new CommCtl.CommCtl_MessageDelegate(RecvMessage);
+            loadConfigData();
             timerForLicense = new System.Windows.Forms.Timer();
             timerForLicense.Interval = 3600000;
             timerForLicense.Tick += new EventHandler(timerForLicense_Tick);
-            bool isExist = checkWincapInstall();
+            timerForLicense.Start();
+
+            callLog_timer = new System.Windows.Forms.Timer();
+            callLog_timer.Interval = 300000;
+            callLog_timer.Tick += new EventHandler(callLog_timer_Tick);
+            callLog_timer.Start();
+
+            if (server_type != null && server_device != null)
+            {
+                startServer();
+            }
+            else
+            {
+                setDevice();
+            }
+        }
+
+        private void callLog_timer_Tick(object sender, EventArgs e)
+        {
             try
             {
-                if (isExist == false)
+                if (server_type.Equals("CI1") || server_type.Equals("CI2") || server_type.Equals("LG"))
                 {
-                    DialogResult result = MessageBox.Show("SIP 폰 사용의 경우, WinPcap 프로그램을 설치해야 합니다.\r\n 설치 하시겠습니까?", "알림", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                    if (result == DialogResult.Yes)
+                    lock (CallLogTable)
                     {
-                        Process.Start(Application.StartupPath + "\\WinPcap_4_1_2.exe");
+                        foreach (DictionaryEntry de in CallLogTable)
+                        {
+                            string call_id = de.Key.ToString();
+                            string[] arr = call_id.Split('$');
+                            if (arr.Length > 1)
+                            {
+                                string time = arr[0]; //yyyyMMddHHmmss
+                                int year = Convert.ToInt32(time.Substring(0, 4));
+                                int month = Convert.ToInt32(time.Substring(4, 2));
+                                int day = Convert.ToInt32(time.Substring(6, 2));
+                                int hour = Convert.ToInt32(time.Substring(8, 2));
+                                int minute = Convert.ToInt32(time.Substring(10, 2));
+                                int second = Convert.ToInt32(time.Substring(12, 2));
+
+                                if (day != DateTime.Now.Day)
+                                {
+                                    logWrite("CallLogTable[" + de.Key.ToString() + "] 삭제");
+                                    CallLogTable.Remove(de.Key);
+                                }
+                                else if (hour != DateTime.Now.Hour)
+                                {
+                                    logWrite("CallLogTable[" + de.Key.ToString() + "] 삭제");
+                                    CallLogTable.Remove(de.Key);
+                                }
+                                else if ((DateTime.Now.Minute - minute) > 5)
+                                {
+                                    logWrite("CallLogTable[" + de.Key.ToString() + "] 삭제");
+                                    CallLogTable.Remove(de.Key);
+                                }
+                            }
+                            else
+                            {
+                                logWrite("callLog_timer_Tick Error : call_id is not devided two string[]");
+                                return;
+                            }
+                        }
                     }
                 }
             }
@@ -194,6 +259,29 @@ namespace WDMsgServer
                 crmport = Convert.ToInt32(System.Configuration.ConfigurationSettings.AppSettings["SVR_CRMPORT"]);
                 fileport = Convert.ToInt32(System.Configuration.ConfigurationSettings.AppSettings["SVR_FILEPORT"]);
                 com_code = System.Configuration.ConfigurationSettings.AppSettings["COM_CODE"];
+                server_type = System.Configuration.ConfigurationSettings.AppSettings["SVR_TYPE"];
+                FtpHost = System.Configuration.ConfigurationSettings.AppSettings["FtpHost"].ToString();
+                tempFolder = System.Configuration.ConfigurationSettings.AppSettings["FtpLocalFolder"].ToString();
+                passwd = System.Configuration.ConfigurationSettings.AppSettings["FtpPass"].ToString();
+                FtpPort = int.Parse(System.Configuration.ConfigurationSettings.AppSettings["FtpPort"].ToString());
+                FtpUsername = System.Configuration.ConfigurationSettings.AppSettings["FtpUserName"].ToString();
+                updaterDir = System.Configuration.ConfigurationSettings.AppSettings["UpdaterDir"].ToString();
+                version = System.Configuration.ConfigurationSettings.AppSettings["FtpVersion"].ToString();
+
+                if (System.Configuration.ConfigurationSettings.AppSettings["AUTO_START"].Length > 0)
+                {
+                    auto_start = Convert.ToInt32(System.Configuration.ConfigurationSettings.AppSettings["AUTO_START"]);
+                }
+                server_device = System.Configuration.ConfigurationSettings.AppSettings["DEVICE"];
+                if (server_type.Length == 0)
+                {
+                    server_type = null;
+                }
+
+                if (server_device.Length == 0)
+                {
+                    server_device = null;
+                }
             }
             catch (Exception ex)
             {
@@ -201,7 +289,102 @@ namespace WDMsgServer
             }
         }
 
-       
+        private void showVersionCheckForm()
+        {
+            versioncheckform = new VersionCheckForm();
+            versioncheckform.TopMost = true;
+            versioncheckform.Show();
+        }
+
+        private void VersionCheckFormClose()
+        {
+            try
+            {
+                versioncheckform.Close();
+            }
+            catch (Exception ex)
+            {
+                logWrite(ex.ToString());
+            }
+        }
+
+        private void VersionCheck()
+        {
+            Thread versioncheckthread = new Thread(new ThreadStart(showVersionCheckForm));
+            versioncheckthread.Start();
+            NoParamDele checkdele = new NoParamDele(VersionCheckFormClose);
+            
+
+            bool isUpdate = false;
+            try
+            {
+                Uri ftpuri = new Uri(FtpHost);
+                FtpWebRequest wr = (FtpWebRequest)WebRequest.Create(ftpuri);
+                wr.Method = WebRequestMethods.Ftp.ListDirectory;
+                wr.Credentials = new NetworkCredential(FtpUsername, passwd);
+                FtpWebResponse wres = (FtpWebResponse)wr.GetResponse();
+                Stream st = wres.GetResponseStream();
+                string SVRver = null;
+
+                if (st.CanRead)
+                {
+                    StreamReader sr = new StreamReader(st);
+                    SVRver = sr.ReadLine();
+                }
+
+                logWrite("Server Version = " + SVRver);
+                logWrite("Client Version = " + version);
+
+                if (SVRver.Equals(version.Trim()))
+                {
+                    version = SVRver;
+
+                    logWrite("Last Version is already Installed!");
+                    Invoke(checkdele);
+                }
+                else
+                {
+                    string[] ver = SVRver.Split('.');
+                    string[] now = version.Split('.');
+                    for (int v = 0; v < ver.Length; v++)
+                    {
+                        if (!ver[v].Equals(now[v]))
+                        {
+                            if (Convert.ToInt32(ver[v]) > Convert.ToInt32(now[v]))
+                            {
+                                Invoke(checkdele);
+                                NoParamDele dele = new NoParamDele(requestUpdate);
+                                Invoke(dele);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logWrite(ex.ToString());
+            }
+            noActive = true;
+
+            //return isUpdate;
+        }
+
+        private void requestUpdate()
+        {
+            try
+            {
+                this.notify_svr.Visible = false;
+                logWrite("Update Start!!" + "  " + DateTime.Now.ToShortTimeString());
+                System.Diagnostics.Process.Start(updaterDir);
+                logWrite("FtpHost : " + FtpHost);
+                Process.GetCurrentProcess().Kill();
+            }
+            catch (Exception ex)
+            {
+                logWrite(ex.ToString());
+            }
+        }
         
         // Cross-Thread 호출를 실행하기 위해 사용합니다.
         private delegate void AddTextDelegate(string strText);  //로그기록 델리게이트
@@ -219,7 +402,8 @@ namespace WDMsgServer
             try
             {
                 ShowNetworkInterfaces();
-                if (server_device == null)
+                VersionCheck();
+                if (server_device == null && server_type == null)
                 {
                     setDevice();
                 }
@@ -245,14 +429,9 @@ namespace WDMsgServer
                 ListenThread.Start();
                 svrStart = true;
                 start.Visible = false;
-                MnAddMember.Enabled = true;
-                MnAddTeam.Enabled = true;
-                conn_callog = GetmysqlConnection();
-                conn_callog.Open();
-                conn_ring = GetmysqlConnection();
-                conn_ring.Open();
                 loadCustomerList();
                 serviceStart = true;
+                MnServerStart.Enabled = false;
             }
             catch (Exception ex)
             {
@@ -502,14 +681,17 @@ namespace WDMsgServer
                     case "5":
                         MessageBox.Show("해당 회사코드로 이미 사용중입니다.");
                         license_message = "해당 회사코드로 이미 사용중입니다.";
-                        foreach (DictionaryEntry de in InClientList)
+                        if (InClientList != null)
                         {
-                            if (de.Value != null)
+                            foreach (DictionaryEntry de in InClientList)
                             {
-                                SendMsg(license_message, (IPEndPoint)de.Value);
+                                if (de.Value != null)
+                                {
+                                    SendMsg(license_message, (IPEndPoint)de.Value);
+                                }
                             }
                         }
-                        Process.GetCurrentProcess().Kill();
+                        
                         break;
                 }
             }
@@ -521,47 +703,53 @@ namespace WDMsgServer
 
         public void ShowNetworkInterfaces()
         {
-            IPGlobalProperties computerProperties = IPGlobalProperties.GetIPGlobalProperties();
-            NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
-            logWrite("Interface information for " +
-                    computerProperties.HostName + ":" + computerProperties.DomainName);
-            if (nics == null || nics.Length < 1)
+            try
             {
-                logFileWrite("네트워크 어뎁터 검색 실패");
-                MessageBox.Show("현재 컴퓨터에서 네트워크 카드를 찾을수 없습니다.\\r\\n 서버가 종료됩니다.");
-                Process.GetCurrentProcess().Kill();
-            }
-            else
-            {
-                logWrite("  Number of interfaces : " + nics.Length);
-                foreach (NetworkInterface adapter in nics)
+                IPGlobalProperties computerProperties = IPGlobalProperties.GetIPGlobalProperties();
+                NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
+                logFileWrite("Interface information for " +
+                        computerProperties.HostName + ":" + computerProperties.DomainName);
+                if (nics == null || nics.Length < 1)
                 {
-                    IPInterfaceProperties properties = adapter.GetIPProperties();
-                    if (adapter.NetworkInterfaceType == NetworkInterfaceType.Ethernet||adapter.NetworkInterfaceType == NetworkInterfaceType.Wireless80211||adapter.NetworkInterfaceType == NetworkInterfaceType.GigabitEthernet)
+                    logWrite("네트워크 어뎁터 검색 실패");
+                    MessageBox.Show("현재 컴퓨터에서 네트워크 카드를 찾을수 없습니다.\\r\\n 서버가 종료됩니다.");
+                    Process.GetCurrentProcess().Kill();
+                }
+                else
+                {
+                    logWrite("  Number of interfaces : " + nics.Length);
+                    foreach (NetworkInterface adapter in nics)
                     {
-                        logWrite("Name : "+adapter.Description);
-                        logFileWrite(String.Empty.PadLeft(adapter.Description.Length, '='));
-                        logWrite("Interface type : " + adapter.NetworkInterfaceType);
-                        logFileWrite("Physical address : ");
-                        PhysicalAddress address = adapter.GetPhysicalAddress();
-                        MACID = address.ToString();
-                        logWrite("MAC : "+MACID);
-                        logWrite("");
-                        logWrite("##################");
-                        logWrite("");
-                        break;
+                        IPInterfaceProperties properties = adapter.GetIPProperties();
+                        if (adapter.NetworkInterfaceType == NetworkInterfaceType.Ethernet || adapter.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || adapter.NetworkInterfaceType == NetworkInterfaceType.GigabitEthernet)
+                        {
+                            logFileWrite("Name : " + adapter.Description);
+                            logFileWrite(String.Empty.PadLeft(adapter.Description.Length, '='));
+                            logFileWrite("Interface type : " + adapter.NetworkInterfaceType);
+                            logFileWrite("Physical address : ");
+                            PhysicalAddress address = adapter.GetPhysicalAddress();
+                            MACID = address.ToString();
+                            logFileWrite("MAC : " + MACID);
+                            logFileWrite("");
+                            logFileWrite("##################");
+                            logFileWrite("");
+                            break;
+                        }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                logWrite(ex.ToString());
+            }
         }
-
 
 
         private void setCompanyCode(string com_cd)
         {
             try
             {
-                xmldoc.Load("WDMsgServer.exe.config");
+                xmldoc.Load("WDMsgServer_Demo.exe.config");
                 XmlNode node = xmldoc.SelectSingleNode("//appSettings");
                 if (node.HasChildNodes)
                 {
@@ -575,7 +763,7 @@ namespace WDMsgServer
                         }
                     }
                 }
-                xmldoc.Save("WDMsgServer.exe.config");
+                xmldoc.Save("WDMsgServer_Demo.exe.config");
             }
             catch (Exception ex)
             {
@@ -587,6 +775,11 @@ namespace WDMsgServer
         {
             try
             {
+
+                conn_ring = GetmysqlConnection();
+                conn_ring.Open();
+
+
                 if (conn_ring.State == ConnectionState.Open)
                 {
                     string queryString = "select C.CUSTOMER_NM, C.C_TELNO, C.H_TELNO, C.C_TELNO1, C.H_TELNO1, D.TELNO " +
@@ -597,79 +790,97 @@ namespace WDMsgServer
                     MySqlCommand command = new MySqlCommand();
                     command.CommandText = queryString;
                     command.Connection = conn_ring;
-                    MySqlDataReader dr =  command.ExecuteReader();
+                    MySqlDataReader dr = command.ExecuteReader();
                     if (dr != null && dr.HasRows)
                     {
                         while (dr.Read())
                         {
+
                             string cName = dr.GetString(0);
-                            if (!dr.IsDBNull(1))
+
+                            if (dr.FieldCount > 5)
                             {
-                                if (dr.GetString(1).Length > 1)
+                                if (!dr.IsDBNull(1))
                                 {
-                                    CustomerList_Primary[dr.GetString(1)] = cName;
-                                    CustomerList_Backup[dr.GetString(1)] = cName;
+                                    if (dr.GetString(1).Length > 1)
+                                    {
+                                        CustomerList_Primary[dr.GetString(1)] = cName;
+                                        CustomerList_Backup[dr.GetString(1)] = cName;
+                                    }
                                 }
-                            }
-                            if (!dr.IsDBNull(2))
-                            {
-                                if (dr.GetString(2).Length > 1)
+                                if (!dr.IsDBNull(2))
                                 {
-                                    CustomerList_Primary[dr.GetString(2)] = cName;
-                                    CustomerList_Backup[dr.GetString(2)] = cName;
+                                    if (dr.GetString(2).Length > 1)
+                                    {
+                                        CustomerList_Primary[dr.GetString(2)] = cName;
+                                        CustomerList_Backup[dr.GetString(2)] = cName;
+                                    }
                                 }
-                            }
-                            if (!dr.IsDBNull(3))
-                            {
-                                if (dr.GetString(3).Length > 1)
+                                if (!dr.IsDBNull(3))
                                 {
-                                    CustomerList_Primary[dr.GetString(3)] = cName;
-                                    CustomerList_Backup[dr.GetString(3)] = cName;
+                                    if (dr.GetString(3).Length > 1)
+                                    {
+                                        CustomerList_Primary[dr.GetString(3)] = cName;
+                                        CustomerList_Backup[dr.GetString(3)] = cName;
+                                    }
                                 }
-                            }
-                            if (!dr.IsDBNull(4))
-                            {
-                                if (dr.GetString(4).Length > 1)
+                                if (!dr.IsDBNull(4))
                                 {
-                                    CustomerList_Primary[dr.GetString(4)] = cName;
-                                    CustomerList_Backup[dr.GetString(4)] = cName;
+                                    if (dr.GetString(4).Length > 1)
+                                    {
+                                        CustomerList_Primary[dr.GetString(4)] = cName;
+                                        CustomerList_Backup[dr.GetString(4)] = cName;
+                                    }
                                 }
-                            }
-                            if (!dr.IsDBNull(5))
-                            {
-                                if (dr.GetString(5).Length > 1)
+                                if (!dr.IsDBNull(5))
                                 {
-                                    CustomerList_Primary[dr.GetString(5)] = cName;
-                                    CustomerList_Backup[dr.GetString(5)] = cName;
+                                    if (dr.GetString(5).Length > 1)
+                                    {
+                                        CustomerList_Primary[dr.GetString(5)] = cName;
+                                        CustomerList_Backup[dr.GetString(5)] = cName;
+                                    }
                                 }
                             }
                         }
 
                         logWrite("CustomerListCache 데이터로드 완료");
 
-                        foreach (DictionaryEntry de in CustomerList_Primary)
-                        {
-                            logFileWrite("CustomerList_Primary[" + de.Key.ToString() + "] = " + de.Value.ToString());
-                        }
-                        foreach (DictionaryEntry de in CustomerList_Backup)
-                        {
-                            logFileWrite("CustomerList_Backup[" + de.Key.ToString() + "] = " + de.Value.ToString());
-                        }
-                        
+                        //foreach (DictionaryEntry de in CustomerList_Primary)
+                        //{
+                        //    logFileWrite("CustomerList_Primary[" + de.Key.ToString() + "] = " + de.Value.ToString());
+                        //}
+                        //foreach (DictionaryEntry de in CustomerList_Backup)
+                        //{
+                        //    logFileWrite("CustomerList_Backup[" + de.Key.ToString() + "] = " + de.Value.ToString());
+                        //}
+
                     }
                     dr.Close();
+                }
+
+                if (conn_ring.State == ConnectionState.Open)
+                {
+                    conn_ring.Close();
                 }
             }
             catch (Exception ex)
             {
                 logWrite(ex.ToString());
+                if (conn_ring.State == ConnectionState.Open)
+                {
+                    conn_ring.Close();
+                }
             }
         }
 
         private void reloadCustomerListCache()
         {
-            
+
             CustomerCacheReload = true;
+
+            conn_ring = GetmysqlConnection();
+            conn_ring.Open();
+
             try
             {
                 if (conn_ring.State == ConnectionState.Open)
@@ -784,18 +995,26 @@ namespace WDMsgServer
                             //{
                             //    logWrite("CustomerList_Primary[" + de.Key.ToString() + "] = " + de.Value.ToString());
                             //}
-                            
+
                             CustomerCacheSwitch = false;
-                            
+
                         }
 
                     }
                     dr.Close();
                 }
+                if (conn_ring.State == ConnectionState.Open)
+                {
+                    conn_ring.Close();
+                }
             }
             catch (Exception ex)
             {
                 logWrite(ex.ToString());
+                if (conn_ring.State == ConnectionState.Open)
+                {
+                    conn_ring.Close();
+                }
             }
             logWrite("고객정보 cache 갱신 : " + CustomerCacheSwitch.ToString());
             CustomerCacheReload = false;
@@ -803,31 +1022,80 @@ namespace WDMsgServer
 
         private void setDevice()
         {
-            nicform = new SetNICForm();
-            if (com_code.Length > 1)
+            try
             {
-                nicform.tbx_com_code.Text = com_code;
+                nicform = new SetNICForm();
+
+                if (com_code.Length > 0)
+                {
+                    nicform.tbx_com_code.Text = com_code;
+                }
+
+                if (server_type != null && server_type.Length > 0)
+                {
+                    switch (server_type)
+                    {
+                        case "SIP":
+                            nicform.rbt_type_sip.Checked = true;
+
+                            break;
+
+                        case "LG":
+                            nicform.rbt_type_lg.Checked = true;
+                            break;
+
+                        case "CI1":
+                            nicform.rbt_type_cid1.Checked = true;
+                            break;
+                        case "CI2":
+                            nicform.rbt_type_cid2.Checked = true;
+                            break;
+
+                        case "SS":
+                            nicform.rbt_type_ss.Checked = true;
+                            break;
+                    }
+                }
+
+                if (server_device != null && server_device.Length > 0)
+                {
+                    nicform.comboBox1.SelectedItem = server_device;
+                }
+
+                nicform.btn_comfirm.MouseClick += new MouseEventHandler(btn_comfirm_MouseClick);
+                nicform.btn_cancel.MouseClick += new MouseEventHandler(btn_cancel_MouseClick);
+                nicform.rbt_type_cid1.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
+                nicform.rbt_type_cid2.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
+                nicform.rbt_type_lg.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
+                nicform.rbt_type_ss.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
+                nicform.rbt_type_sip.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
+                nicform.Show();
+                nicform.Activate();
             }
-            nicform.btn_comfirm.MouseClick += new MouseEventHandler(btn_comfirm_MouseClick);
-            nicform.btn_cancel.MouseClick += new MouseEventHandler(btn_cancel_MouseClick);
-            nicform.rbt_type_cid.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
-            nicform.rbt_type_lg.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
-            nicform.rbt_type_ss.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
-            nicform.rbt_type_sip.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
-            nicform.Show();
-            nicform.Activate();
+            catch (Exception ex)
+            {
+                logWrite(ex.ToString());
+            }
         }
+
 
         private void rbt_type_CheckedChanged(object sender, EventArgs e)
         {
-            RadioButton rbt = (RadioButton)sender;
-            if (rbt.Checked == true)
+            try
             {
-                stringDele changerbt = new stringDele(chageRBTstatus);
-                Invoke(changerbt, rbt.Name);
-                logWrite("통화장치 타입변경 : " + rbt.Name);
-                server_type = rbt.Tag.ToString();
-                logWrite("server_type : " + server_type);
+                RadioButton rbt = (RadioButton)sender;
+                if (rbt.Checked == true)
+                {
+                    stringDele changerbt = new stringDele(chageRBTstatus);
+                    Invoke(changerbt, new object[]{rbt.Name});
+                    logWrite("통화장치 타입변경 : " + rbt.Name);
+                    server_type = rbt.Tag.ToString();
+                    logWrite("server_type : " + server_type);
+                }
+            }
+            catch (Exception ex)
+            {
+                logWrite(ex.ToString());
             }
         }
 
@@ -835,8 +1103,12 @@ namespace WDMsgServer
         {
             RegistryKey Hklm = Registry.LocalMachine;
             RegistryKey HkSoftware = Hklm.OpenSubKey("Software");
+            if (HkSoftware.SubKeyCount == 0)
+            {
+                HkSoftware = Hklm.OpenSubKey("SOFTWARE");
+            }
             RegistryKey HkMicrosoft = HkSoftware.OpenSubKey("Microsoft");
-            RegistryKey HkWindows = HkMicrosoft.OpenSubKey("windows");
+            RegistryKey HkWindows = HkMicrosoft.OpenSubKey("Windows");
             RegistryKey HkCurrent = HkWindows.OpenSubKey("CurrentVersion");
             RegistryKey HkUninstall = HkCurrent.OpenSubKey("uninstall");
 
@@ -855,15 +1127,16 @@ namespace WDMsgServer
                 {
                     if (name.Equals("DisplayName"))
                     {
-                       string value = key.GetValue(name).ToString();
-                       if (value.Contains("WinPcap"))
-                       {
-                           logWrite(value + " 설치되었음");
-                           isExist = true;
-                       }
-                       break;
+                        string value = key.GetValue(name).ToString();
+                        if (value.Contains("WinPcap"))
+                        {
+                            logWrite(value + " 설치되었음");
+                            isExist = true;
+                        }
+                        break;
                     }
                 }
+
                 if (isExist == true)
                 {
                     break;
@@ -881,52 +1154,105 @@ namespace WDMsgServer
         private void chageRBTstatus(string rbtname)
         {
             int count = nicform.groupBox1.Controls.Count;
-            for (int i = 0; i < count; i++)
+            bool isExist = false;
+            if (count > 0)
             {
-                if (nicform.groupBox1.Controls[i].Name.Equals(rbtname))
+                for (int i = 0; i < count; i++)
                 {
-                    RadioButton rbt = (RadioButton)nicform.groupBox1.Controls[i];
-                    rbt.Checked = true;
+                    if (nicform.groupBox1.Controls[i].Name.Equals(rbtname))
+                    {
+                        RadioButton rbt = (RadioButton)nicform.groupBox1.Controls[i];
+                        rbt.Checked = true;
+                    }
+                    else
+                    {
+                        RadioButton rbt = (RadioButton)nicform.groupBox1.Controls[i];
+                        rbt.Checked = false;
+                    }
+                }
+
+
+                if (rbtname.Equals("rbt_type_sip"))
+                {
+
+                    isExist = checkWincapInstall();
+
+                    if (isExist == true)
+                    {
+                        listupDevice(rbtname);
+                    }
+                    else
+                    {
+                        if (isExist == false)
+                        {
+                            DialogResult result = MessageBox.Show("SIP 폰 사용의 경우, WinPcap 프로그램을 설치해야 합니다.\r\n 설치 하시겠습니까?", "알림", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                            if (result == DialogResult.Yes)
+                            {
+                                Process.Start(Application.StartupPath + "\\WinPcap_4_1_2.exe");
+                            }
+                        }
+                    }
                 }
                 else
                 {
-                    RadioButton rbt = (RadioButton)nicform.groupBox1.Controls[i];
-                    rbt.Checked = false;
+                    listupDevice(rbtname);
                 }
             }
-
-
-            listupDevice(rbtname);
 
         }
 
         private void listupDevice(string rbtname)
         {
-            nicform.comboBox1.Items.Clear();
-            if (rbtname.Equals("rbt_type_sip"))
+            try
             {
-                deviceList = CaptureDeviceList.Instance;
-                if (deviceList.Count != 0)
+                nicform.comboBox1.Items.Clear();
+                nicform.comboBox1.Items.Add("::::::::::::장 치 선 택::::::::::::");
+                if (rbtname.Equals("rbt_type_sip"))
                 {
-                    foreach (ICaptureDevice d in deviceList)
+                    deviceList = CaptureDeviceList.Instance;
+                    if (deviceList.Count != 0)
                     {
-                        nicform.comboBox1.Items.Add(d.Description);
+                        foreach (ICaptureDevice d in deviceList)
+                        {
+                            nicform.comboBox1.Items.Add(d.Description);
+                        }
+
+                        if (server_device != null && !server_type.Equals("SIP"))
+                        {
+                            nicform.comboBox1.DroppedDown = true;
+                        }
+
+                        else if (server_device == null)
+                        {
+                            nicform.comboBox1.DroppedDown = true;
+                        }
                     }
-                    nicform.comboBox1.DroppedDown = true;
+                }
+                else
+                {
+                    serialport = new SerialPort();
+                    string[] ports = SerialPort.GetPortNames();
+                    if (ports.Length > 0)
+                    {
+                        foreach (string item in ports)
+                        {
+                            nicform.comboBox1.Items.Add(item);
+                        }
+
+                        if (server_device != null && server_type.Equals("SIP"))
+                        {
+                            nicform.comboBox1.DroppedDown = true;
+                        }
+                        else if (server_device == null)
+                        {
+                            nicform.comboBox1.DroppedDown = true;
+                        }
+                    }
                 }
             }
-            else 
+            catch (Exception ex)
             {
-                serialport = new SerialPort();
-                string[] ports = SerialPort.GetPortNames();
-                if (ports.Length > 0)
-                {
-                    foreach (string item in ports)
-                    {
-                        nicform.comboBox1.Items.Add(item);
-                    }
-                    nicform.comboBox1.DroppedDown = true;
-                }
+
             }
         }
 
@@ -937,20 +1263,67 @@ namespace WDMsgServer
 
         private void btn_comfirm_MouseClick(object sender, MouseEventArgs e)
         {
-            string nicName = (string)nicform.comboBox1.SelectedItem;
+            string nicName = "";
+
+            nicName = (string)nicform.comboBox1.SelectedItem;
 
             server_device = nicName;
 
-
-            if (nicform.tbx_com_code.Text.Trim().Length > 0)
+            if (server_device.Length > 1)
             {
-                com_code = nicform.tbx_com_code.Text.Trim();
-                setCompanyCode(com_code);
+                if (nicform.tbx_com_code.Text.Trim().Length > 0)
+                {
+                    com_code = nicform.tbx_com_code.Text.Trim();
+                    setCompanyCode(com_code);
+                }
+
+                if (auto_start == 0)
+                {
+                    DialogResult result = MessageBox.Show("WeDo 서버를 자동실행 설정하시겠습니까?", "알림", MessageBoxButtons.YesNo);
+                    if (result == DialogResult.Yes)
+                    {
+                        setSVR_typeXml("WDMsgServer_Demo.exe.config", server_type, server_device, "1");
+                        setAutoStart(true);
+                    }
+                }
+
+                nicform.Close();
+                startServer();
             }
-            nicform.Close();
-            startServer();
+            else
+            {
+                setDevice();
+            }
         }
 
+
+        private void setAutoStart(bool value)
+        {
+            try
+            {
+                if (value == true)
+                {
+                    System.Configuration.ConfigurationSettings.AppSettings.Set("AUTO_START", "1");
+                    RegistryKey rkApp = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+                    rkApp.SetValue("WeDo Server Demo", Application.ExecutablePath.ToString(), RegistryValueKind.String);
+                    rkApp.Close();
+                }
+                else
+                {
+                    System.Configuration.ConfigurationSettings.AppSettings.Set("AUTO_START", "0");
+                    RegistryKey rkApp = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+                    if (rkApp.GetValue("WeDo Server Demo") != null)
+                    {
+                        rkApp.DeleteValue("WeDo Server Demo");
+                    }
+                    rkApp.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+
+            }
+        }
         
 
         private string GetTeamName(string id)
@@ -1496,7 +1869,7 @@ namespace WDMsgServer
                         logWrite("case 8 로그인 요청");
 
                         re = msg.Split('|'); //msg 구성 : 코드번호|id|비밀번호|내선번호|ip주소
-                        iep = new IPEndPoint(IPAddress.Parse(re[4]), 8883);
+                        //iep = new IPEndPoint(IPAddress.Parse(re[4]), 8883);
                         Login(re, iep);
 
                         break;
@@ -1563,31 +1936,35 @@ namespace WDMsgServer
                         fileinfotable[re] = filename;
 
                         //파일 수신 스레드 시작
-                        lock (filesock)
+                        if (filesock == null)
                         {
                             filesock = new UdpClient(filesender);
+                        }
+
+                        lock (filesock)
+                        {
                             if (!ThreadList.ContainsKey(re[3] + re[4]) || ThreadList[re[3] + re[4]] == null) //같은 파일에 대한 전송 쓰레드가 시작되지 않았다면
                             {
                                 Thread filereceiver = new Thread(new ParameterizedThreadStart(FileReceiver));
                                 filereceiver.Start(fileinfotable);
                                 ThreadList[re[3] + re[4]] = filereceiver;
-                                SendMsg("Y|" + re[1] + "|" + re[3] + "|" + re[5], iep);  //re[5]==all 의 경우 전체에 대한 파일 전송
+                                SendMsg("FS|" + re[1] + "|" + re[3] + "|" + re[5], iep);  //re[5]==all 의 경우 전체에 대한 파일 전송
                             }
                         }
                         break;
 
                     case 3:   //사용자 로그인 상태 체크요청(코드번호|id)
-                        re = msg.Split('|');
-                        if (InClientList.ContainsKey(re[1]) && InClientList[re[1]] != null)
-                        {
-                            SendMsg("+|", (IPEndPoint)InClientList[re[1]]);
-                        }
-                        else
-                        {
+                        //re = msg.Split('|');
+                        //if (InClientList.ContainsKey(re[1]) && InClientList[re[1]] != null)
+                        //{
+                        //    SendMsg("+|", (IPEndPoint)InClientList[re[1]]);
+                        //}
+                        //else
+                        //{
 
-                            Logout(re[1]);
+                        //    Logout(re[1]);
 
-                        }
+                        //}
                         break;
 
                     case 6:  //공지사항 전달(6|메시지|발신자id | n 또는 e | noticetime | 제목)  n : 일반공지 , e : 긴급공지
@@ -1800,12 +2177,16 @@ namespace WDMsgServer
                             if (InClientList[re[3]] != null)
                             {
                                 SendMsg(passmsg, (IPEndPoint)InClientList[re[3]]);
-                                SendMsg(passmsg, (IPEndPoint)InClientList[re[2]]);
+                                //SendMsg(passmsg, (IPEndPoint)InClientList[re[2]]);
+                            }
+                            else
+                            {
+                                InsertNoReceive(re[3], "N/A", msg, "t", re[2], "t");
                             }
                         }
                         else
                         {
-                            InsertNoReceive(re[3], "N/A", re[1], "t", re[2], "t");
+                            InsertNoReceive(re[3], "N/A", msg, "t", re[2], "t");
                         }
 
                         if (CustomerCacheReload == false)
@@ -1822,7 +2203,7 @@ namespace WDMsgServer
                         {
                             foreach (object obj in transflist)
                             {
-                                string[] array = (string[])obj;  //string[] { sender, content, time, seqnum }
+                                string[] array = (string[])obj;  //string[] { sender, content, time, seqnum, type }
                                 if (array.Length != 0)
                                 {
                                     string item = array[0] + "†" + array[1] + "†" + array[2] + "†" + array[3];
@@ -1852,6 +2233,7 @@ namespace WDMsgServer
             try
             {
                 IPEndPoint iep = null;
+                string userid = "";
                 if (sEvent.Equals("Connect") || sEvent.Equals("disConnect"))
                 {
                     logWrite("Event : " + sEvent + "sInfo : " + sInfo + "\r\n");
@@ -1862,6 +2244,23 @@ namespace WDMsgServer
                     if (infoarr.Length > 1)
                     {
                         logWrite("Event : " + sEvent + "  FROM : " + infoarr[0] + " TO : " + infoarr[1] + "\r\n");
+
+                        if(infoarr[0].Length<5 && infoarr[1].Length<5)
+                        {
+
+                            logWrite("Internal Call Event");
+                            return;
+                        }
+                        else if (infoarr[0].Substring(0, 3).Equals(infoarr[1].Substring(0, 3)))
+                        {
+                            logWrite("Internal Call Event");
+                            return;
+                        }
+                        else if (ExtensionList.ContainsKey(infoarr[0]) && ExtensionList.ContainsKey(infoarr[2]))
+                        {
+                            logWrite("Internal Call Event");
+                            return;
+                        }
 
                         switch (sEvent)
                         {
@@ -1876,14 +2275,28 @@ namespace WDMsgServer
                                         iep = (IPEndPoint)ExtensionList[infoarr[1]];
                                         SendRinging("Ring|" + infoarr[0] + "|" + cname + "|" + server_type, iep);
                                     }
+
                                     lock (CallLogTable)
                                     {
                                         if (!CallLogTable.ContainsKey(infoarr[2]))
                                         {
                                             CallLogTable[infoarr[2]] = "Ringing";
-                                            insertCallLog(infoarr[1], infoarr[0], "1", infoarr[2]);
+                                            if (ExtensionIDpair.ContainsKey(infoarr[1]))
+                                            {
+                                                string tempid = ExtensionIDpair[infoarr[1]].ToString();
+
+                                                Client cinfo = (Client)ClientInfoList[tempid];
+                                                userid = tempid + "." + cinfo.getName();
+                                            }
+                                            else
+                                            {
+                                                userid = infoarr[1];
+                                            }
+                                            //insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "1");
+                                            insertCallLog(infoarr[1], infoarr[0], "1", infoarr[2], "1");
                                         }
                                     }
+
                                     if (CustomerCacheReload == false)
                                         reloadCustomerListCache();
                                 }
@@ -1897,14 +2310,24 @@ namespace WDMsgServer
 
                                 if (CallLogTable.ContainsKey(infoarr[2]))
                                 {
-                                    if (CallLogTable[infoarr[2]].ToString().Equals("Ringing"))
+                                    if (CallLogTable[infoarr[2]].ToString().Equals("Ringing")) //응답시 Answer 중복 이벤트 처리
                                     {
+                                        userid = infoarr[1];
                                         if (ExtensionList.Count > 0 && ExtensionList.ContainsKey(infoarr[1]))
                                         {
                                             iep = (IPEndPoint)ExtensionList[infoarr[1]];
-                                            SendMsg("Answer|" + infoarr[0] + "|" + "1", iep);
+                                            SendMsg("Answer|" + infoarr[0] + "|" + "1", iep); //SIP 폰의 경우 직통전화이므로 바로 전송
 
+                                            if (ExtensionIDpair.ContainsKey(infoarr[1]))
+                                            {
+                                                string tempid = ExtensionIDpair[infoarr[1]].ToString();
+
+                                                Client cinfo = (Client)ClientInfoList[tempid];
+                                                userid = tempid + "." + cinfo.getName();
+                                            }
                                         }
+
+                                        insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "3");
 
                                         lock (CallLogTable)
                                         {
@@ -1943,7 +2366,7 @@ namespace WDMsgServer
                                     if (!CallLogTable.ContainsKey(infoarr[2]))
                                     {
                                         CallLogTable[infoarr[2]] = DateTime.Now;
-                                        insertCallLog(infoarr[0], infoarr[1], "2", infoarr[2]);
+                                        insertCallLog(infoarr[0], infoarr[1], "2", infoarr[2], "2");
                                     }
                                 }
                                 break;
@@ -1962,6 +2385,20 @@ namespace WDMsgServer
                                                 SendMsg("Abandon|" + infoarr[0], iep);
 
                                             }
+
+                                            if (ExtensionIDpair.ContainsKey(infoarr[1]))
+                                            {
+                                                string tempid = ExtensionIDpair[infoarr[1]].ToString();
+
+                                                Client cinfo = (Client)ClientInfoList[tempid];
+                                                userid = tempid + "." + cinfo.getName();
+                                            }
+                                            else
+                                            {
+                                                userid = infoarr[1];
+                                            }
+
+                                            insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "4");
                                             CallLogTable.Remove(infoarr[2]);
                                         }
                                     }
@@ -1978,26 +2415,69 @@ namespace WDMsgServer
                                 if (CallLogTable.ContainsKey(infoarr[2]))
                                 {
                                     logWrite("통화종료 이벤트!");
+
                                     if (ExtensionList.Count > 0)
                                     {
                                         if (ExtensionList.ContainsKey(infoarr[0])) //FROM == 사용자일 경우
                                         {
-                                            updateCallLog(infoarr[2], "5");
+                                            if (ExtensionIDpair.ContainsKey(infoarr[0]))
+                                            {
+                                                string tempid = ExtensionIDpair[infoarr[0]].ToString();
+
+                                                Client cinfo = (Client)ClientInfoList[tempid];
+                                                userid = tempid + "." + cinfo.getName();
+                                            }
+                                            else
+                                            {
+                                                userid = infoarr[0];
+                                            }
+                                            insertCallLog2(infoarr[2], infoarr[0], infoarr[1], userid, "2", "5");
                                         }
                                         else if (ExtensionList.ContainsKey(infoarr[1])) //TO == 사용자일 경우
                                         {
-                                            updateCallLog(infoarr[2], "5");
+                                            if (ExtensionIDpair.ContainsKey(infoarr[1]))
+                                            {
+                                                string tempid = ExtensionIDpair[infoarr[1]].ToString();
+
+                                                Client cinfo = (Client)ClientInfoList[tempid];
+                                                userid = tempid + "." + cinfo.getName();
+                                            }
+                                            else
+                                            {
+                                                userid = infoarr[1];
+                                            }
+                                            insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "5");
                                         }
                                         else
                                         {
                                             int numlen = infoarr[0].Length - infoarr[1].Length; //리스트에 없는 경우(해당 내선사용자 로그아웃) 짧은 번호를 사용자로 판단
                                             if (numlen > 0)
                                             {
-                                                updateCallLog(infoarr[2], "5");
+                                                if (ExtensionIDpair.ContainsKey(infoarr[1]))
+                                                {
+                                                    string tempid = ExtensionIDpair[infoarr[1]].ToString();
+                                                    Client cinfo = (Client)ClientInfoList[tempid];
+                                                    userid = tempid + "." + cinfo.getName();
+                                                }
+                                                else
+                                                {
+                                                    userid = infoarr[1];
+                                                }
+                                                insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "5");
                                             }
                                             else
                                             {
-                                                updateCallLog(infoarr[2], "5");
+                                                if (ExtensionIDpair.ContainsKey(infoarr[0]))
+                                                {
+                                                    string tempid = ExtensionIDpair[infoarr[0]].ToString();
+                                                    Client cinfo = (Client)ClientInfoList[tempid];
+                                                    userid = tempid + "." + cinfo.getName();
+                                                }
+                                                else
+                                                {
+                                                    userid = infoarr[0];
+                                                }
+                                                insertCallLog2(infoarr[2], infoarr[0], infoarr[1], userid, "2", "5");
                                             }
                                         }
                                     }
@@ -2006,11 +2486,31 @@ namespace WDMsgServer
                                         int numlen = infoarr[0].Length - infoarr[1].Length; //리스트에 없는 경우(해당 내선사용자 로그아웃) 짧은 번호를 사용자로 판단
                                         if (numlen > 0)
                                         {
-                                            updateCallLog(infoarr[2], "5");
+                                            if (ExtensionIDpair.ContainsKey(infoarr[1]))
+                                            {
+                                                string tempid = ExtensionIDpair[infoarr[1]].ToString();
+                                                Client cinfo = (Client)ClientInfoList[tempid];
+                                                userid = tempid + "." + cinfo.getName();
+                                            }
+                                            else
+                                            {
+                                                userid = infoarr[1];
+                                            }
+                                            insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "5");
                                         }
                                         else
                                         {
-                                            updateCallLog(infoarr[2], "5");
+                                            if (ExtensionIDpair.ContainsKey(infoarr[0]))
+                                            {
+                                                string tempid = ExtensionIDpair[infoarr[0]].ToString();
+                                                Client cinfo = (Client)ClientInfoList[tempid];
+                                                userid = tempid + "." + cinfo.getName();
+                                            }
+                                            else
+                                            {
+                                                userid = infoarr[0];
+                                            }
+                                            insertCallLog2(infoarr[2], infoarr[0], infoarr[1], userid, "2", "5");
                                         }
                                     }
                                 }
@@ -2022,10 +2522,11 @@ namespace WDMsgServer
                         }
                     }
                 }
-                else
+                else if(server_type.Equals("LG")) //CID 장치 또는 KEYPHONE
                 {
                     logWrite("Event : " + sEvent + "  sInfo : " + sInfo + "\r\n");
-
+                    string[] infoarr = sInfo.Split('>');
+                    string call_id = DateTime.Now.ToString("yyyyMMddHHmmss") +"$"+ infoarr[0];
                     switch (sEvent)
                     {
                         case "Ringing":
@@ -2043,18 +2544,95 @@ namespace WDMsgServer
 
                             if (CustomerCacheReload == false)
                                 reloadCustomerListCache();
-                            //lock (CallLogTable)
-                            //{
-                                //string call_id = DateTime.Now.ToString("yyyyMMddHHmmss") + sEvent + "|" + sInfo;
-                                //CallLogTable[call_id] = DateTime.Now;
-                                //insertCallLog(infoarr[1], infoarr[0], "1", infoarr[2]);
-                            //}
+
+                            CallLogTable[call_id] = infoarr[0];
+                            insertCallLog("All", infoarr[0], "1", call_id, "1");
+
                             break;
 
                         case "Answer":
 
-                            string[] infoarr = sInfo.Split('>');
-                            logWrite("받은 내선 : " + infoarr[1]);
+
+                            if (infoarr.Length > 1)
+                            {
+                                logWrite("받은 내선 : " + infoarr[1]);
+
+                                foreach (DictionaryEntry de in InClientList)
+                                {
+                                    if (de.Value != null)
+                                    {
+                                        SendRinging("Other|", (IPEndPoint)de.Value);
+                                    }
+                                }
+
+                                if (ExtensionList.Count > 0 && ExtensionList.ContainsKey(infoarr[1]))
+                                {
+                                    iep = (IPEndPoint)ExtensionList[infoarr[1]];
+                                    SendMsg("Answer|" + infoarr[0] + "|" + "1", iep);
+                                }
+
+                                if (CallLogTable.ContainsValue(infoarr[0])) //CallLogTable[call_id] = ani
+                                {
+                                    foreach (DictionaryEntry de in CallLogTable)
+                                    {
+                                        if (de.Value.ToString().Equals(infoarr[0]))
+                                        {
+                                            if (ExtensionIDpair.ContainsKey(infoarr[1]))
+                                            {
+                                                string tempid = ExtensionIDpair[infoarr[1]].ToString();
+
+                                                Client cinfo = (Client)ClientInfoList[tempid];
+                                                userid = tempid + "." + cinfo.getName();
+                                            }
+                                            else
+                                            {
+                                                userid = infoarr[1];
+                                            }
+                                            insertCallLog3(call_id, infoarr[1], infoarr[0], userid, "1", "3");
+                                            CallLogTable.Remove(de.Key);
+                                            break;
+                                        }
+                                    }
+
+                                }
+                                else
+                                {
+                                    logWrite("CallLogTable 에 Ringing 정보 없음");
+                                }
+                            }
+                            break;
+                    }
+                }
+                else if (server_type.Equals("CI1") || server_type.Equals("CI2"))
+                {
+                    logWrite("Event : " + sEvent + "  sInfo : " + sInfo + "\r\n");
+                    string[] infoarr = sInfo.Split('>');
+                    string call_id = DateTime.Now.ToString("yyyyMMddHHmmss") +"$"+ infoarr[0];
+                    switch (sEvent)
+                    {
+
+                        case "Ringing" :
+
+                            string cname = "";
+                            cname = getCustomerNM(sInfo);
+                            logWrite("고객이름 : " + cname);
+                            foreach (DictionaryEntry de in InClientList)
+                            {
+                                if (de.Value != null)
+                                {
+                                    SendRinging("Ring|" + sInfo + "|" + cname + "|" + server_type, (IPEndPoint)de.Value);
+                                }
+                            }
+
+                            if (CustomerCacheReload == false)
+                                reloadCustomerListCache();
+
+                            CallLogTable[call_id] = infoarr[0];
+                            insertCallLog("All", infoarr[0], "1", call_id, "1");
+
+                            break;
+
+                        case "OffHook" :
 
                             foreach (DictionaryEntry de in InClientList)
                             {
@@ -2064,115 +2642,35 @@ namespace WDMsgServer
                                 }
                             }
 
-                            if (ExtensionList.Count > 0 && ExtensionList.ContainsKey(infoarr[1]))
+                            if (CallLogTable.Count > 0) //CallLogTable[call_id] = ani
                             {
-                                iep = (IPEndPoint)ExtensionList[infoarr[1]];
-                                SendMsg("Answer|" + infoarr[0] + "|" + "1", iep);
-
-                            }
-
-                            string call_id = DateTime.Now.ToString("yyyyMMddHHmmss") + "|" + infoarr[0] + "|" + infoarr[1];
-                            insertCallLog(infoarr[1], infoarr[0], "1", call_id);
-                            //lock (CallLogTable)
-                            //{
-                            //    CallLogTable[infoarr[2]] = DateTime.Now;
-                            //}
-                            break;
-
-                        case "CallConnect": //발신 후 연결
-
-                            //lock (CallLogTable)
-                            //{
-                            //    CallLogTable[infoarr[2]] = DateTime.Now;
-                            //}
-                            break;
-
-                        case "Dialing":
-
-                            //if (ExtensionList.Count > 0 && ExtensionList.ContainsKey(infoarr[0]))
-                            //{
-                            //    iep = (IPEndPoint)ExtensionList[infoarr[0]];
-                            //    SendMsg("Dial|" + infoarr[1] + "|", iep);
-
-                            //}
-                            //lock (CallLogTable)
-                            //{
-                            //    if (!CallLogTable.ContainsKey(infoarr[2]))
-                            //    {
-                            //        CallLogTable[infoarr[2]] = DateTime.Now;
-                            //        insertCallLog(infoarr[0], infoarr[1], "2", infoarr[2]);
-                            //    }
-                            //}
-                            break;
-
-                        case "Abandon":
-
-
-                            foreach (DictionaryEntry de in InClientList)
-                            {
-                                if (de.Value != null)
+                                foreach (DictionaryEntry logitem in CallLogTable)
                                 {
-                                    SendRinging("Abandon|" + sInfo, (IPEndPoint)de.Value);
+                                    foreach (DictionaryEntry clientItem in InClientList)
+                                    {
+                                        if (clientItem.Value != null)
+                                        {
+                                            SendMsg("Answer|" + logitem.Value.ToString() + "|" + "1", (IPEndPoint)clientItem.Value);
+                                        }
+                                    }
+
+                                    insertCallLog3(call_id, "All", logitem.Value.ToString(), "All", "1", "3");
+                                    CallLogTable.Remove(logitem.Key);
+                                    break;
                                 }
+
                             }
-
-                            //lock (CallLogTable)
-                            //{
-                            //    if (!CallLogTable[infoarr[2]].ToString().Equals("A"))
-                            //    {
-                            //        if (ExtensionList.Count > 0 && ExtensionList.ContainsKey(infoarr[1]))
-                            //        {
-                            //            iep = (IPEndPoint)ExtensionList[infoarr[1]];
-                            //            SendMsg("Abandon|" + infoarr[0], iep);
-
-                            //        }
-
-                            //        updateCallLog(infoarr[2], "4");
-                            //        //CallLogTable[infoarr[2]] = "A";
-                            //    }
-                            //}
+                            else
+                            {
+                                logWrite("CallLogTable 에 Ringing 정보 없음");
+                            }
 
                             break;
 
-                        //case "HangUp":
+                        case "OnHook" :
 
-                        //    logWrite("통화종료 이벤트!");
-                        //    if (ExtensionList.Count > 0)
-                        //    {
-                        //        if (ExtensionList.ContainsKey(infoarr[0])) //FROM == 사용자일 경우
-                        //        {
-                        //            updateCallLog(infoarr[2], "5");
-                        //        }
-                        //        else if (ExtensionList.ContainsKey(infoarr[1])) //TO == 사용자일 경우
-                        //        {
-                        //            updateCallLog(infoarr[2], "5");
-                        //        }
-                        //        else
-                        //        {
-                        //            int numlen = infoarr[0].Length - infoarr[1].Length; //리스트에 없는 경우(해당 내선사용자 로그아웃) 짧은 번호를 사용자로 판단
-                        //            if (numlen > 0)
-                        //            {
-                        //                updateCallLog(infoarr[2], "5");
-                        //            }
-                        //            else
-                        //            {
-                        //                updateCallLog(infoarr[2], "5");
-                        //            }
-                        //        }
-                        //    }
-                        //    else
-                        //    {
-                        //        int numlen = infoarr[0].Length - infoarr[1].Length; //리스트에 없는 경우(해당 내선사용자 로그아웃) 짧은 번호를 사용자로 판단
-                        //        if (numlen > 0)
-                        //        {
-                        //            updateCallLog(infoarr[2], "5");
-                        //        }
-                        //        else
-                        //        {
-                        //            updateCallLog(infoarr[2], "5");
-                        //        }
-                        //    }
-                        //    break;
+
+                            break;
                     }
                 }
             }
@@ -2243,7 +2741,7 @@ namespace WDMsgServer
             return cname;
         }
 
-        private void updateCallLog(string call_id, string call_result) //HangUp or Abandon
+        private void insertCallLog2(string call_id, string extension, string ani, string user, string call_type, string call_result) //Answer or HangUp or Abandon
         {
             try
             {
@@ -2252,19 +2750,206 @@ namespace WDMsgServer
                 string call_end = "";
                 int call_duration = 0;
                 DateTime result_time = DateTime.Now;
-                call_end = result_time.ToString("yyyyMMddHHmmss");
-                logWrite("call_end = " + call_end);
-
-                if (CallLogTable.ContainsKey(call_id))
+                if (call_result.Equals("3")) // answer
                 {
-                    start_time = (DateTime)CallLogTable[call_id];
-                    call_start = start_time.ToString("yyyyMMddHHmmss");
+                    if (CallLogTable.ContainsKey(call_id))
+                    {
+                        call_start = result_time.ToString("yyyyMMddHHmmss");
+                        logWrite("call_start = " + call_start);
+                        CallLogTable[call_id] = result_time;
+
+                        if (conn_callog.State != ConnectionState.Open)
+                        {
+                            conn_callog = GetmysqlConnection();
+                            conn_callog.Open();
+                        }
+
+                        MySqlCommand command = new MySqlCommand();
+                        command.Connection = conn_callog;
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.Add("@com_cd", MySqlDbType.VarChar).Value = com_code;
+                        command.Parameters.Add("@starttime", MySqlDbType.VarChar).Value = call_start;
+                        command.Parameters.Add("@ext_num", MySqlDbType.VarChar).Value = extension;
+                        command.Parameters.Add("@call_type", MySqlDbType.VarChar).Value = call_type;
+                        command.Parameters.Add("@call_result", MySqlDbType.VarChar).Value = call_result;
+                        command.Parameters.Add("@ani", MySqlDbType.VarChar).Value = ani;
+                        command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
+                        command.Parameters.Add("@userid", MySqlDbType.VarChar).Value = user;
+
+                        if (server_type.Equals("LG"))
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
+                        }
+                        else if (server_type.Equals("SIP"))
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
+                        }
+                        else
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "3";
+                        }
+
+                        command.CommandText = "insert into t_call_history" +
+                        "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
+                        "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
+
+                        int count = command.ExecuteNonQuery();
+
+                        if (count != 0)
+                        {
+                            logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !");
+                        }
+                        else
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id);
+                        }
+                    }
+                    else
+                    {
+                        logWrite("CallLogTable 에 해당 키 없음 : " + call_id);
+                    }
+                }
+                else if (call_result.Equals("4")) // abandon
+                {
+                    call_start = result_time.ToString("yyyyMMddHHmmss");
                     logWrite("call_start = " + call_start);
-                    CallLogTable.Remove(call_id);
+
+                    if (CallLogTable.ContainsKey(call_id))
+                    {
+                        CallLogTable.Remove(call_id);
+
+                        MySqlCommand command = new MySqlCommand();
+                        command.Connection = conn_callog;
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.Add("@com_cd", MySqlDbType.VarChar).Value = com_code;
+                        command.Parameters.Add("@starttime", MySqlDbType.VarChar).Value = call_start;
+                        command.Parameters.Add("@ext_num", MySqlDbType.VarChar).Value = extension;
+                        command.Parameters.Add("@call_type", MySqlDbType.VarChar).Value = call_type;
+                        command.Parameters.Add("@call_result", MySqlDbType.VarChar).Value = call_result;
+                        command.Parameters.Add("@ani", MySqlDbType.VarChar).Value = ani;
+                        command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
+                        command.Parameters.Add("@userid", MySqlDbType.VarChar).Value = user;
+
+                        if (server_type.Equals("LG"))
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
+                        }
+                        else if (server_type.Equals("SIP"))
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
+                        }
+                        else
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "3";
+                        }
+
+                        command.CommandText = "insert into t_call_history" +
+                        "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
+                        "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
+
+                        int count = command.ExecuteNonQuery();
+
+                        if (count != 0)
+                        {
+                            logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !");
+                        }
+                        else
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id);
+                        }
+                    }
+                }
+                else if (call_result.Equals("5"))//released
+                {
+                    call_end = result_time.ToString("yyyyMMddHHmmss");
+                    logWrite("call_end = " + call_end);
+
+                    if (CallLogTable.ContainsKey(call_id))
+                    {
+                        start_time = (DateTime)CallLogTable[call_id];
+                        call_start = start_time.ToString("yyyyMMddHHmmss");
+                        logWrite("call_start = " + call_start);
+                        CallLogTable.Remove(call_id);
 
 
-                    call_duration = (result_time - start_time).Seconds;
+                        call_duration = (result_time - start_time).Seconds;
 
+                        if (conn_callog.State != ConnectionState.Open)
+                        {
+                            conn_callog = GetmysqlConnection();
+                            conn_callog.Open();
+                        }
+
+                        MySqlCommand command = new MySqlCommand();
+                        command.Connection = conn_callog;
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.Add("@com_cd", MySqlDbType.VarChar).Value = com_code;
+                        command.Parameters.Add("@starttime", MySqlDbType.VarChar).Value = call_start;
+                        command.Parameters.Add("@endtime", MySqlDbType.VarChar).Value = call_end;
+                        command.Parameters.Add("@ext_num", MySqlDbType.VarChar).Value = extension;
+                        command.Parameters.Add("@call_type", MySqlDbType.VarChar).Value = call_type;
+                        command.Parameters.Add("@call_result", MySqlDbType.VarChar).Value = call_result;
+                        command.Parameters.Add("@ani", MySqlDbType.VarChar).Value = ani;
+                        command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
+                        command.Parameters.Add("@userid", MySqlDbType.VarChar).Value = user;
+                        command.Parameters.Add("@duration", MySqlDbType.VarChar).Value = call_duration;
+
+                        if (server_type.Equals("LG"))
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
+                        }
+                        else if (server_type.Equals("SIP"))
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
+                        }
+                        else
+                        {
+                            command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "3";
+                        }
+
+                        command.CommandText = "insert into t_call_history" +
+                        "(COM_CD, TONG_START_TIME, TONG_END_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, TONG_DURATION, PBX_TYPE) " +
+                        "VALUE(@com_cd, @starttime, @endtime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @duration, @pbx_type)";
+
+                        int count = command.ExecuteNonQuery();
+
+                        if (count != 0)
+                        {
+                            logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !");
+                        }
+                        else
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id);
+                        }
+                    }
+                }
+                if (conn_callog.State == ConnectionState.Open)
+                {
+                    conn_callog.Close();
+                }
+
+            }
+            catch (Exception ex)
+            {
+                logWrite("insertCallLog2 Exception : " + ex.ToString());
+                if (conn_callog.State == ConnectionState.Open)
+                {
+                    conn_callog.Close();
+                }
+            }
+        }
+
+        private void insertCallLog3(string call_id, string extension, string ani, string user, string call_type, string call_result) //Answer or HangUp or Abandon
+        {
+            try
+            {
+                DateTime start_time = new DateTime();
+                string call_start = DateTime.Now.ToString("yyyyMMddHHmmss");
+                string call_end = "";
+                int call_duration = 0;
+                DateTime result_time = DateTime.Now;
+                if (call_result.Equals("3")) // answer
+                {
                     if (conn_callog.State != ConnectionState.Open)
                     {
                         conn_callog = GetmysqlConnection();
@@ -2274,32 +2959,63 @@ namespace WDMsgServer
                     MySqlCommand command = new MySqlCommand();
                     command.Connection = conn_callog;
                     command.CommandType = CommandType.Text;
-                    command.Parameters.Add("@callstart_time", MySqlDbType.VarChar).Value = call_start;
-                    command.Parameters.Add("@callend_time", MySqlDbType.VarChar).Value = call_end;
-                    command.Parameters.Add("@duration", MySqlDbType.Int32).Value = call_duration;
-                    command.Parameters.Add("@result", MySqlDbType.VarChar).Value = call_result;
+                    command.Parameters.Add("@com_cd", MySqlDbType.VarChar).Value = com_code;
+                    command.Parameters.Add("@starttime", MySqlDbType.VarChar).Value = call_start;
+                    command.Parameters.Add("@ext_num", MySqlDbType.VarChar).Value = extension;
+                    command.Parameters.Add("@call_type", MySqlDbType.VarChar).Value = call_type;
+                    command.Parameters.Add("@call_result", MySqlDbType.VarChar).Value = call_result;
+                    command.Parameters.Add("@ani", MySqlDbType.VarChar).Value = ani;
                     command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
+                    command.Parameters.Add("@userid", MySqlDbType.VarChar).Value = user;
 
-                    command.CommandText = "update t_call_history set " +
-                        "TONG_START_TIME = @callstart_time, TONG_END_TIME = @callend_time, TONG_DURATION = @duration, CALL_RESULT = @result " +
-                        "where CALL_ID = @call_id";
+                    if (server_type.Equals("LG"))
+                    {
+                        command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
+                    }
+                    else if (server_type.Equals("SIP"))
+                    {
+                        command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
+                    }
+                    else
+                    {
+                        command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "3";
+                    }
+
+                    command.CommandText = "insert into t_call_history" +
+                    "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
+                    "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
 
                     int count = command.ExecuteNonQuery();
 
                     if (count != 0)
                     {
-                        logWrite("insertCallLog : " + call_id + " Call Log DB Insert !");
+                        logWrite("insertCallLog3 : " + call_id + " Call Log DB Insert !");
                     }
+                    else
+                    {
+                        logWrite("insertCallLog3 실패: " + call_id);
+                    }
+
+                }
+
+
+                if (conn_callog.State == ConnectionState.Open)
+                {
+                    conn_callog.Close();
                 }
 
             }
             catch (Exception ex)
             {
-                logWrite("insertCallLog Exception : " + ex.ToString());
+                logWrite("insertCallLog3 Exception : " + ex.ToString());
+                if (conn_callog.State == ConnectionState.Open)
+                {
+                    conn_callog.Close();
+                }
             }
         }
 
-        private void insertCallLog(string ext, string ani, string call_type, string call_id)
+        private void insertCallLog(string ext, string ani, string call_type, string call_id, string call_result)
         {
             try
             {
@@ -2318,12 +3034,26 @@ namespace WDMsgServer
                 command.Parameters.Add("@starttime", MySqlDbType.VarChar).Value = startTime;
                 command.Parameters.Add("@ext_num", MySqlDbType.VarChar).Value = ext;
                 command.Parameters.Add("@call_type", MySqlDbType.VarChar).Value = call_type;
+                command.Parameters.Add("@call_result", MySqlDbType.VarChar).Value = call_result;
                 command.Parameters.Add("@ani", MySqlDbType.VarChar).Value = ani;
                 command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
 
+                if (server_type.Equals("LG"))
+                {
+                    command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
+                }
+                else if(server_type.Equals("SIP"))
+                {
+                    command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
+                }
+                else
+                {
+                    command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "3";
+                }
+
                 command.CommandText = "insert into t_call_history" +
-                "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID) " +
-                "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id)";
+                "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, PBX_TYPE) " +
+                "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @pbx_type)";
 
                 int count = command.ExecuteNonQuery();
 
@@ -2331,11 +3061,22 @@ namespace WDMsgServer
                 {
                     logWrite("insertCallLog : " + call_id + " Call Log DB Insert !");
                 }
-
+                else
+                {
+                    logWrite("insertCallLog 실패: " + call_id + " Call Log DB Insert !");
+                }
+                if (conn_callog.State == ConnectionState.Open)
+                {
+                    conn_callog.Close();
+                }
             }
             catch (Exception ex)
             {
                 logWrite("insertCallLog Exception : " + ex.ToString());
+                if (conn_callog.State == ConnectionState.Open)
+                {
+                    conn_callog.Close();
+                }
             }
         }
 
@@ -2801,7 +3542,7 @@ namespace WDMsgServer
                 {
                     lock (filesock)
                     {
-                        filesock.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 3000);
+                        filesock.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 5000);
                         while (true)
                         {
                             //logWrite("FileReceiver() 수신대기 ");
@@ -2865,7 +3606,6 @@ namespace WDMsgServer
                 catch (SocketException e)
                 {
                     logWrite("FileReceive() 에러 : " + e.ToString());
-                    
                 }
                 logWrite("FileReceiver 가 중단되었습니다. ");
                 if (size!=0&&size >= filesize)
@@ -2878,6 +3618,7 @@ namespace WDMsgServer
             {
                 logWrite("FileReceiver() 에러 : " + e3.ToString());
             }
+            
         }
 
         private bool GetFileName(string filename, int num)
@@ -2934,7 +3675,7 @@ namespace WDMsgServer
                     logWrite("file " + filename + " insert DB");
                 }
 
-                cmd.CommandText = "select seqnum from t_files where ftime = filetime";
+                cmd.CommandText = "select seqnum from t_files where ftime = @filetime";
                 MySqlDataReader dr = null;
                 try
                 {
@@ -3290,7 +4031,7 @@ namespace WDMsgServer
                 UdpClient filesendSock = new UdpClient(sendfileIEP);
 
                 IPEndPoint iep = (IPEndPoint)InClientList[id];
-                iep.Port = 9001;    //파일전용 포트로 변경
+                iep.Port = 9003;    //파일전용 포트로 변경
                 logWrite("SendFile() 파일전송 포트 변경 :" + iep.Port.ToString());
 
                 FileInfo fi = new FileInfo(fileloc);
@@ -3403,10 +4144,14 @@ namespace WDMsgServer
 
                             //로그인 사용자 내선번호 등록
                             cl.setPosition(arr[3]);
-
+                            ExtensionIDpair[arr[3]] = cl.getId();
+                            logWrite(arr[3] + " = " + cl.getId() + " 등록");
                             //로그인 사용자 IPEndPoint 등록
-                            iep = new IPEndPoint(IPAddress.Parse(arr[4]), sendport);
+                            //iep = new IPEndPoint(IPAddress.Parse(arr[4]), sendport);
 
+                            //로그인 사용자 정보리스트에 등록
+                            ClientInfoList[cl.getId()] = cl;
+                            
                             logWrite(cl.getName() + "(" + cl.getId() + ") 님 로그인 성공!(" + DateTime.Now.ToString() + ")");
 
                             Statlist[id] = "6"; //로그인 성공시 사용자 프리젠스 6(로그아웃)으로 설정
@@ -3698,7 +4443,9 @@ namespace WDMsgServer
                     {
                         foreach (object obj in translist)
                         {
-                            string[] array = (string[])obj;//string[]{sender,content, time, seqnum}
+                            string[] array = (string[])obj;//string[]{sender,content, time, seqnum} , content => pass|ani|senderID|receiverID|일자|시간|CustomerName
+                            string temp = array[1];
+                            array[1] = temp.Replace('|', '&');
                             if (array.Length != 0)
                             {
                                 string item = array[0] + "†" + array[1] + "†" + array[2] + "†" + array[3];
@@ -3995,7 +4742,7 @@ namespace WDMsgServer
 
                     logWrite("receiver IP : " + iep.Address.ToString());
                     logWrite("receiver port : " + iep.Port.ToString());
-
+                    logWrite("sendMessage : " + msg);
                     for (int i = 0; i < 2; i++)
                     {
                         try
@@ -4024,6 +4771,7 @@ namespace WDMsgServer
                             //logWrite(e.ToString());
                         }
                     }
+
                     //if (re == null || re.Length == 0)
                     //{
                     //    isError = true;
@@ -4420,7 +5168,7 @@ namespace WDMsgServer
             cmd.Connection = conn;
             cmd.CommandType = CommandType.Text;
             cmd.Parameters.Add("@id", MySqlDbType.VarChar).Value = id;
-            cmd.CommandText = "select sender, loc, content, time, seqnum from t_noreceive where receiver=@id and form='f'";
+            cmd.CommandText = "select tn.sender, tn.loc, tn.content, tn.time, tn.seqnum, tf.fsize from t_noreceive tn, t_files tf where tn.receiver=@id and tn.form='f' and tn.loc=tf.seqnum;";
             MySqlDataReader dr = null;
             try
             {
@@ -4441,30 +5189,8 @@ namespace WDMsgServer
                     string content = dr.GetString(2);  //파일명
                     string time = dr.GetString(3);
                     string seqnum = dr.GetValue(4).ToString();
-                    string fsize = null;
+                    string fsize = dr.GetValue(5).ToString();
                     logWrite(loc);
-                    cmd.CommandText = "select seqnum, fsize from t_files";
-                    MySqlDataReader dr1 = null;
-                    try
-                    {
-                        dr1 = cmd.ExecuteReader();
-                    }
-                    catch (Exception ex1)
-                    {
-                        logWrite("ReadFile() cmd.ExecuteNonQuery() 에러 : " + ex1.ToString());
-                    }
-                    if (dr1 != null)
-                    {
-                        while (dr1.Read())
-                        {
-                            string seqn = dr1.GetValue(0).ToString();
-                            if (seqn.Trim().Equals(loc.Trim()))
-                            {
-                                fsize = dr1.GetString(1);
-                            }
-                        }
-                    }
-                    logWrite(fsize);
                     string[] str = new string[] { sender, loc, content, time, fsize, seqnum}; //content= 파일명
                     list.Add(str);
                 }
@@ -4516,7 +5242,7 @@ namespace WDMsgServer
                     string content = dr.GetString(1);
                     string time = dr.GetString(2);
                     string seqnum = dr.GetValue(3).ToString();
-                   
+                    
                     string[] str = new string[] { sender, content, time, seqnum};
                     list.Add(str);
                 }
@@ -4524,6 +5250,7 @@ namespace WDMsgServer
             
             try
             {
+                dr.Close();
                 conn.Close();
             }
             catch (Exception ex2)
@@ -4789,9 +5516,9 @@ namespace WDMsgServer
         {
             try
             {
-                AddText = new AddTextDelegate(LogBox.AppendText);
+                AddText = new AddTextDelegate(writeLogBox);
                 svrLog += "( " + DateTime.Now.ToString() + ")" + "\r\n";
-                if (this.InvokeRequired)
+                if (LogBox.InvokeRequired)
                 {
                     Invoke(AddText, svrLog);
                     if (CanFileWrite == true)
@@ -4800,13 +5527,19 @@ namespace WDMsgServer
                 else
                 {
                     LogBox.AppendText(svrLog);
-                    if (CanFileWrite == true) logFileWrite(svrLog);
+                    if (CanFileWrite == true)
+                        logFileWrite(svrLog);
                 }
             }
             catch (Exception exception)
             {
                 logWrite(exception.ToString());
             }
+        }
+
+        private void writeLogBox(string str)
+        {
+            LogBox.AppendText(str);
         }
 
         /// <summary>
@@ -4816,23 +5549,50 @@ namespace WDMsgServer
         {
             try
             {
-                di = new DirectoryInfo(Application.StartupPath + "\\files");
-                if (!di.Exists)
+                DirectoryInfo filefolder = new DirectoryInfo(Application.StartupPath + "\\files");
+                if (!filefolder.Exists)
                 {
-                    di.Create();
+                    filefolder.Create();
                     logWrite(" 폴더 생성!");
                 }
 
-                di = new DirectoryInfo(Application.StartupPath + "\\log");
-                if (!di.Exists)
+                DirectoryInfo logfolder = new DirectoryInfo(Application.StartupPath + "\\log");
+                if (!logfolder.Exists)
                 {
-                    di.Create();
+                    logfolder.Create();
                     logWrite("log 폴더 생성");
                 }
+
+                DirectoryInfo updaterDir = new DirectoryInfo("c:\\MiniCTI\\AutoUpdater_Server_Demo");
+                if (!updaterDir.Exists)
+                {
+                    updaterDir.Create();
+                }
+
+                FileInfo[] files = null;
+                DirectoryInfo update = new DirectoryInfo(Application.StartupPath + "\\AutoUpdater_Server_Demo");
+
+                if (update.Exists)
+                {
+                    files = update.GetFiles();
+                    foreach (FileInfo fi in files)
+                    {
+                        FileInfo finfo = new FileInfo("C:\\MiniCTI\\AutoUpdater_Server_Demo\\" + fi.Name);
+                        fi.CopyTo(finfo.FullName, true);
+                    }
+                }
+                else
+                {
+                    logWrite("WeDoUpdater.Exists = false");
+                }
+            }
+            catch (IOException ioe)
+            {
+
             }
             catch (Exception e)
             {
-                logWrite(e.ToString() + " : 폴더를 생성하지 못했습니다.");
+                //logWrite(e.ToString() + " : 폴더를 생성하지 못했습니다.");
             }
             CanFileWrite = true;
         }
@@ -4846,14 +5606,18 @@ namespace WDMsgServer
         {
             try
             {
-                if (!di.Exists)
-                {
-                    svr_FileCheck();
-                }
+                //di = new DirectoryInfo(Application.StartupPath + "\\log\\" + DateTime.Now.ToShortDateString() + ".log");
+
+                //if (!di.Exists)
+                //{
+                //    svr_FileCheck();
+                //}
+
                 try
                 {
                     sw = new StreamWriter(Application.StartupPath + "\\log\\" + DateTime.Now.ToShortDateString() + ".log", true);
                     sw.WriteLine(_log);
+                    sw.Flush();
                     sw.Close();
                 }
                 catch (Exception e)
@@ -4975,6 +5739,8 @@ namespace WDMsgServer
             start.Visible = true;
             svrStart = false;
             this.Close();
+            notify_svr.Visible = false;
+            Process.GetCurrentProcess().Kill();
         }
 
         private void stop_Click(object sender, EventArgs e)
@@ -4993,24 +5759,8 @@ namespace WDMsgServer
 
         private void MsgSvrForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-
-            if (svrStart == true)
-            {
-                DialogResult result = MessageBox.Show(this, "정말 메신저 서버를 중단시키겠습니까?", "서버 중단 경고", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
-                if (result == DialogResult.OK)
-                {
-                    ServerStop();
-                    Application.ExitThread();
-                    Application.Exit();
-                    Process.GetCurrentProcess().Kill();
-                }
-                else e.Cancel = true;
-            }
-            else
-            {
-                Process.GetCurrentProcess().Kill();
-            }
-             
+            e.Cancel = true;
+            this.Visible = false;
         }
 
 
@@ -5118,22 +5868,55 @@ namespace WDMsgServer
 
         private void btn_confirm_MouseClick(object sender, MouseEventArgs e)
         {
-            AbandonDele dele = new AbandonDele(sendTestRing);
-            Invoke(dele);
+            Thread t1 = new Thread(new ThreadStart(sendTestRing));
+            t1.Start();
         }
 
         private void sendTestRing()
         {
-            Thread.Sleep(4000);
-            string aniNum = calltestform.txtbox_ani.Text;
-            string extNum = calltestform.txtbox_ext.Text;
-            int delay = Convert.ToInt32(calltestform.txtbox_time.Text);
-            RecvMessage("Ringing", aniNum);
-
-            if (extNum.Length > 0)
+            try
             {
-                Thread.Sleep(delay);
-                RecvMessage("Answer", aniNum + ">" + extNum);
+                Thread.Sleep(3000);
+                string aniNum = calltestform.txtbox_ani.Text;
+                string extNum = calltestform.txtbox_ext.Text;
+                int delay = Convert.ToInt32(calltestform.txtbox_time.Text);
+
+
+                if (server_type.Equals("LG"))
+                {
+                    RecvMessage("Ringing", aniNum);
+                    if (extNum.Length > 0)
+                    {
+                        Thread.Sleep(delay);
+                        RecvMessage("Answer", aniNum + ">" + extNum);
+                    }
+                }
+                else if (server_type.Equals("SIP"))
+                {
+                    string call_id = DateTime.Now.ToString("yyyyMMddHHmmss#" + aniNum);
+                    RecvMessage("Ringing", aniNum + "|" + extNum + "|" + call_id);
+                    if (extNum.Length > 0)
+                    {
+                        Thread.Sleep(delay);
+                        RecvMessage("Answer", aniNum + "|" + extNum + "|" + call_id);
+
+                        Thread.Sleep(delay);
+                        RecvMessage("HangUp", aniNum + "|" + extNum + "|" + call_id);
+                    }
+                }
+                else if (server_type.Equals("CI1") || server_type.Equals("CI2"))
+                {
+                    RecvMessage("Ringing", aniNum);
+                    if (extNum.Length > 0)
+                    {
+                        Thread.Sleep(delay);
+                        RecvMessage("OffHook", "");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logWrite(ex.ToString());
             }
         }
 
@@ -5294,7 +6077,7 @@ namespace WDMsgServer
             {
                 if (dbinfo.cbx_modify.CheckState == CheckState.Checked)
                 {
-                    xmldoc.Load("WDMsgServer.exe.config");
+                    xmldoc.Load("WDMsgServer_Demo.exe.config");
                     XmlNode node = xmldoc.SelectSingleNode("//appSettings");
                     if (node.HasChildNodes)
                     {
@@ -5322,7 +6105,7 @@ namespace WDMsgServer
                             }
                         }
                     }
-                    xmldoc.Save("WDMsgServer.exe.config");
+                    xmldoc.Save("WDMsgServer_Demo.exe.config");
                     System.Configuration.ConfigurationSettings.AppSettings.Set("DB_HOST", dbinfo.tbx_host.Text);
                     System.Configuration.ConfigurationSettings.AppSettings.Set("DB_NAME", dbinfo.tbx_dbname.Text);
                     System.Configuration.ConfigurationSettings.AppSettings.Set("DB_USER", dbinfo.tbx_id.Text);
@@ -5340,6 +6123,41 @@ namespace WDMsgServer
                 ex.ToString();
             }
         }
+
+        private void setSVR_typeXml(string filename, string svr_type, string device, string auto_start)
+        {
+            XmlDocument doc = new XmlDocument();
+            doc.Load(filename);
+
+            XmlNode pnode = doc.SelectSingleNode("//appSettings");
+            if (pnode.HasChildNodes)
+            {
+                XmlNodeList nodelist = pnode.ChildNodes;
+                foreach (XmlNode node in nodelist)
+                {
+                    if (node.Attributes["key"].Value.Equals("SVR_TYPE"))
+                    {
+                        node.Attributes["value"].Value = svr_type;
+                    }
+                    else if (node.Attributes["key"].Value.Equals("DEVICE"))
+                    {
+                        node.Attributes["value"].Value = device;
+                    }
+                    else if (node.Attributes["key"].Value.Equals("AUTO_START"))
+                    {
+                        node.Attributes["value"].Value = auto_start;
+                    }
+                }
+
+                doc.Save(filename);
+
+                System.Configuration.ConfigurationSettings.AppSettings.Set("SVR_TYPE", svr_type);
+                System.Configuration.ConfigurationSettings.AppSettings.Set("DEVICE", device);
+                System.Configuration.ConfigurationSettings.AppSettings.Set("AUTO_START", auto_start);
+            }
+        }
+
+
 
         #region sip 캡쳐 테스트 부분
 
@@ -5452,6 +6270,78 @@ namespace WDMsgServer
         }
 
         #endregion
+
+        private void StripMenu_svrconfig_Click(object sender, EventArgs e)
+        {
+            setDevice();
+        }
+
+        private void 콜테스트ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            makeCallTestForm();
+        }
+
+        private void 보이기ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.Visible = true;
+            this.TopMost = true;
+            this.Show();
+        }
+
+        private void notify_svr_MouseClick(object sender, MouseEventArgs e)
+        {
+
+        }
+
+        private void MsgSvrForm_MinimumSizeChanged(object sender, EventArgs e)
+        {
+            NoParamDele dele = new NoParamDele(formHide);
+            Invoke(dele);
+        }
+
+        private void formHide()
+        {
+            this.Visible = false;
+            this.WindowState = FormWindowState.Normal;
+        }
+
+        private void 서버종료ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            DialogResult result = MessageBox.Show(this, "정말 메신저 서버를 중단시키겠습니까?", "서버 중단 경고", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+            if (result == DialogResult.OK)
+            {
+                ServerStop();
+                Application.ExitThread();
+                Application.Exit();
+                notify_svr.Visible = false;
+                Process.GetCurrentProcess().Kill();
+
+            }
+
+        }
+
+        private void MnServerStop_Click(object sender, EventArgs e)
+        {
+
+            DialogResult result = MessageBox.Show(this, "정말 메신저 서버를 중단시키겠습니까?", "서버 중단 경고", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+            if (result == DialogResult.OK)
+            {
+                ServerStop();
+                Application.ExitThread();
+                Application.Exit();
+                notify_svr.Visible = false;
+                Process.GetCurrentProcess().Kill();
+            }
+
+        }
+
+        private void MnServerStart_Click(object sender, EventArgs e)
+        {
+            startServer();
+        }
+
+       
 
     }
 }
