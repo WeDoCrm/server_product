@@ -124,6 +124,12 @@
         "Entry"
         {
         "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_382F16A62DEB3232C782B246D88BA8A2"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_89D1A92C418E37AA332DDCDEEC6F892F"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -143,12 +149,6 @@
         {
         "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_4952AC967878D96222B51E1AABA16119"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_382F16A62DEB3232C782B246D88BA8A2"
         "MsmSig" = "8:_UNDEFINED"
         }
     }
@@ -272,7 +272,7 @@
             "SourcePath" = "8:..\\..\\..\\AutoUpdater_svr\\AutoUpdater\\AutoUpdater\\bin\\Release\\AutoUpdater_Svr.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
-            "Folder" = "8:_F6187843D4204AAEB284F7A9A2C72575"
+            "Folder" = "8:_78FE37D569744697AA4E8C8285180E76"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -456,7 +456,7 @@
             "SourcePath" = "8:..\\..\\..\\AutoUpdater_svr\\AutoUpdater\\AutoUpdater\\bin\\Release\\AutoUpdater_Svr.exe.config"
             "TargetName" = "8:AutoUpdater_Svr.exe.config"
             "Tag" = "8:"
-            "Folder" = "8:_F6187843D4204AAEB284F7A9A2C72575"
+            "Folder" = "8:_78FE37D569744697AA4E8C8285180E76"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -487,7 +487,7 @@
             "SourcePath" = "8:..\\..\\..\\AutoUpdater_svr\\AutoUpdater\\AutoUpdater\\bin\\Release\\Interop.WindowsInstaller.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
-            "Folder" = "8:_F6187843D4204AAEB284F7A9A2C72575"
+            "Folder" = "8:_78FE37D569744697AA4E8C8285180E76"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -610,9 +610,9 @@
         "Product"
         {
         "Name" = "8:Microsoft Visual Studio"
-        "ProductName" = "8:WD_Server"
+        "ProductName" = "8:WeDo Server"
         "ProductCode" = "8:{28A16BFE-4472-4F6F-9630-5B74CBF795E4}"
-        "PackageCode" = "8:{F69CEDA5-4753-4690-8C24-1C148562C40B}"
+        "PackageCode" = "8:{4D27F793-2897-4DF6-AB8A-6D5C2F497DF2}"
         "UpgradeCode" = "8:{B7A459BB-4623-49E3-8C2D-24BE99452AD8}"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:FALSE"

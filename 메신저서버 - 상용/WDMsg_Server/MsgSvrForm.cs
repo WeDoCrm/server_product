@@ -49,6 +49,15 @@ namespace WDMsgServer
         //private string WDdbUser = null;
         //private string WDdbPass = null;
 
+        //기본 설정 정보
+        private bool IsProductMode = false;
+        private string AppName = "";
+        private string AppConfigName = "";
+        private string AppRegName = "";
+        private string UpdateTargetDir = "";
+        private string UpdateAppDir = "";
+
+
         //업데이트 서버 정보
         private string FtpHost = null;
         private string FtpUsername = null;
@@ -156,6 +165,30 @@ namespace WDMsgServer
 
         private void MsgSvrForm_Load(object sender, EventArgs e)
         {
+
+            string temp = Process.GetCurrentProcess().ProcessName;
+            if (temp.IndexOf('.') < 0 ) 
+            {
+                AppName = temp;
+            } else {
+                AppName = temp.Substring(0, temp.IndexOf('.'));
+            }
+
+            IsProductMode = !(AppName.ToUpper().Contains(ConstDef.STR_DEMO));
+
+            AppConfigName = string.Format(ConstDef.APP_CONFIG_NAME, temp);
+            if (IsProductMode) {
+                AppRegName = ConstDef.REG_APP_NAME;
+                UpdateTargetDir = ConstDef.WORK_DIR + ConstDef.UPDT_DIR;
+                UpdateAppDir = Application.StartupPath + ConstDef.UPDT_DIR;
+            } else {
+                AppRegName = ConstDef.REG_APP_NAME_DEMO;
+                UpdateTargetDir = ConstDef.WORK_DIR + ConstDef.UPDT_DIR_DEMO;
+                UpdateAppDir = Application.StartupPath + ConstDef.UPDT_DIR_DEMO;
+            }
+            logWrite("Product Mode[" + AppName + "]["+IsProductMode +"]");
+
+
             svr_FileCheck();                        //로그파일, 폴더 생성
             logWrite("svr_FileCheck() 완료!");
             commctl.OnEvent += new CommCtl.CommCtl_MessageDelegate(RecvMessage);
@@ -184,7 +217,7 @@ namespace WDMsgServer
         {
             try
             {
-                if (server_type.Equals("CI1") || server_type.Equals("CI2") || server_type.Equals("LG"))
+                if (server_type.Equals(ConstDef.NIC_CID_PORT1) || server_type.Equals(ConstDef.NIC_CID_PORT2) || server_type.Equals(ConstDef.NIC_LG_KP))
                 {
                     lock (CallLogTable)
                     {
@@ -749,7 +782,7 @@ namespace WDMsgServer
         {
             try
             {
-                xmldoc.Load("WDMsgServer_Demo.exe.config");
+                xmldoc.Load(AppConfigName);
                 XmlNode node = xmldoc.SelectSingleNode("//appSettings");
                 if (node.HasChildNodes)
                 {
@@ -763,7 +796,7 @@ namespace WDMsgServer
                         }
                     }
                 }
-                xmldoc.Save("WDMsgServer_Demo.exe.config");
+                xmldoc.Save(AppConfigName);
             }
             catch (Exception ex)
             {
@@ -1035,23 +1068,23 @@ namespace WDMsgServer
                 {
                     switch (server_type)
                     {
-                        case "SIP":
+                        case ConstDef.NIC_SIP:
                             nicform.rbt_type_sip.Checked = true;
 
                             break;
 
-                        case "LG":
+                        case ConstDef.NIC_LG_KP:
                             nicform.rbt_type_lg.Checked = true;
                             break;
 
-                        case "CI1":
+                        case ConstDef.NIC_CID_PORT1:
                             nicform.rbt_type_cid1.Checked = true;
                             break;
-                        case "CI2":
+                        case ConstDef.NIC_CID_PORT2:
                             nicform.rbt_type_cid2.Checked = true;
                             break;
 
-                        case "SS":
+                        case ConstDef.NIC_SS_KP:
                             nicform.rbt_type_ss.Checked = true;
                             break;
                     }
@@ -1099,6 +1132,33 @@ namespace WDMsgServer
             }
         }
 
+        private bool checkWincapInstall2()
+        {
+            string keyName;
+
+            // search in: CurrentUser
+            keyName = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+            if (ExistsInRemoteSubKey(p_machineName, RegistryHive.CurrentUser, keyName, "DisplayName", p_name) == true)
+            {
+                return true;
+            }
+
+            // search in: LocalMachine_32
+            keyName = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+            if (ExistsInRemoteSubKey(p_machineName, RegistryHive.LocalMachine, keyName, "DisplayName", p_name) == true)
+            {
+                return true;
+            }
+
+            // search in: LocalMachine_64
+            keyName = @"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
+            if (ExistsInRemoteSubKey(p_machineName, RegistryHive.LocalMachine, keyName, "DisplayName", p_name) == true)
+            {
+                return true;
+            }
+
+            return false;
+        }
         private bool checkWincapInstall()
         {
             RegistryKey Hklm = Registry.LocalMachine;
@@ -1172,7 +1232,7 @@ namespace WDMsgServer
                 }
 
 
-                if (rbtname.Equals("rbt_type_sip"))
+                if (rbtname.Equals(ConstDef.RBT_TYPE_SIP))
                 {
 
                     isExist = checkWincapInstall();
@@ -1188,7 +1248,7 @@ namespace WDMsgServer
                             DialogResult result = MessageBox.Show("SIP 폰 사용의 경우, WinPcap 프로그램을 설치해야 합니다.\r\n 설치 하시겠습니까?", "알림", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                             if (result == DialogResult.Yes)
                             {
-                                Process.Start(Application.StartupPath + "\\WinPcap_4_1_2.exe");
+                                Process.Start(Application.StartupPath + ConstDef.WINPCAP);
                             }
                         }
                     }
@@ -1207,7 +1267,7 @@ namespace WDMsgServer
             {
                 nicform.comboBox1.Items.Clear();
                 nicform.comboBox1.Items.Add("::::::::::::장 치 선 택::::::::::::");
-                if (rbtname.Equals("rbt_type_sip"))
+                if (rbtname.Equals(ConstDef.RBT_TYPE_SIP))
                 {
                     deviceList = CaptureDeviceList.Instance;
                     if (deviceList.Count != 0)
@@ -1217,7 +1277,7 @@ namespace WDMsgServer
                             nicform.comboBox1.Items.Add(d.Description);
                         }
 
-                        if (server_device != null && !server_type.Equals("SIP"))
+                        if (server_device != null && !server_type.Equals(ConstDef.NIC_SIP))
                         {
                             nicform.comboBox1.DroppedDown = true;
                         }
@@ -1239,7 +1299,7 @@ namespace WDMsgServer
                             nicform.comboBox1.Items.Add(item);
                         }
 
-                        if (server_device != null && server_type.Equals("SIP"))
+                        if (server_device != null && server_type.Equals(ConstDef.NIC_SIP))
                         {
                             nicform.comboBox1.DroppedDown = true;
                         }
@@ -1264,6 +1324,7 @@ namespace WDMsgServer
         private void btn_comfirm_MouseClick(object sender, MouseEventArgs e)
         {
             string nicName = "";
+            string autoStartValue = "";
 
             nicName = (string)nicform.comboBox1.SelectedItem;
 
@@ -1282,11 +1343,16 @@ namespace WDMsgServer
                     DialogResult result = MessageBox.Show("WeDo 서버를 자동실행 설정하시겠습니까?", "알림", MessageBoxButtons.YesNo);
                     if (result == DialogResult.Yes)
                     {
-                        setSVR_typeXml("WDMsgServer_Demo.exe.config", server_type, server_device, "1");
+                        autoStartValue = "1";
                         setAutoStart(true);
+                    }
+                    else
+                    {
+                        autoStartValue = "0";
                     }
                 }
 
+                setSVR_typeXml(AppConfigName, server_type, server_device, autoStartValue);
                 nicform.Close();
                 startServer();
             }
@@ -1305,16 +1371,16 @@ namespace WDMsgServer
                 {
                     System.Configuration.ConfigurationSettings.AppSettings.Set("AUTO_START", "1");
                     RegistryKey rkApp = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-                    rkApp.SetValue("WeDo Server Demo", Application.ExecutablePath.ToString(), RegistryValueKind.String);
+                    rkApp.SetValue(AppRegName , Application.ExecutablePath.ToString(), RegistryValueKind.String);
                     rkApp.Close();
                 }
                 else
                 {
                     System.Configuration.ConfigurationSettings.AppSettings.Set("AUTO_START", "0");
                     RegistryKey rkApp = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-                    if (rkApp.GetValue("WeDo Server Demo") != null)
+                    if (rkApp.GetValue(AppRegName) != null)
                     {
-                        rkApp.DeleteValue("WeDo Server Demo");
+                        rkApp.DeleteValue(AppRegName);
                     }
                     rkApp.Close();
                 }
@@ -2238,7 +2304,7 @@ namespace WDMsgServer
                 {
                     logWrite("Event : " + sEvent + "sInfo : " + sInfo + "\r\n");
                 }
-                else if (server_type.Equals("SIP"))
+                else if (server_type.Equals(ConstDef.NIC_SIP))
                 {
                     string[] infoarr = sInfo.Split('|'); //sInfo(FROM | TO | Call_ID)
                     if (infoarr.Length > 1)
@@ -2355,16 +2421,16 @@ namespace WDMsgServer
 
                             case "Dialing":
 
-                                if (ExtensionList.Count > 0 && ExtensionList.ContainsKey(infoarr[0]))
-                                {
-                                    iep = (IPEndPoint)ExtensionList[infoarr[0]];
-                                    SendMsg("Dial|" + infoarr[1] + "|", iep);
-
-                                }
                                 lock (CallLogTable)
                                 {
                                     if (!CallLogTable.ContainsKey(infoarr[2]))
                                     {
+                                        if (ExtensionList.Count > 0 && ExtensionList.ContainsKey(infoarr[0]))
+                                        {
+                                            iep = (IPEndPoint)ExtensionList[infoarr[0]];
+                                            SendMsg("Dial|" + infoarr[1] + "|", iep);
+
+                                        }
                                         CallLogTable[infoarr[2]] = DateTime.Now;
                                         insertCallLog(infoarr[0], infoarr[1], "2", infoarr[2], "2");
                                     }
@@ -2522,7 +2588,7 @@ namespace WDMsgServer
                         }
                     }
                 }
-                else if(server_type.Equals("LG")) //CID 장치 또는 KEYPHONE
+                else if(server_type.Equals(ConstDef.NIC_LG_KP)) //CID 장치 또는 KEYPHONE
                 {
                     logWrite("Event : " + sEvent + "  sInfo : " + sInfo + "\r\n");
                     string[] infoarr = sInfo.Split('>');
@@ -2603,7 +2669,7 @@ namespace WDMsgServer
                             break;
                     }
                 }
-                else if (server_type.Equals("CI1") || server_type.Equals("CI2"))
+                else if (server_type.Equals(ConstDef.NIC_CID_PORT1) || server_type.Equals(ConstDef.NIC_CID_PORT2))
                 {
                     logWrite("Event : " + sEvent + "  sInfo : " + sInfo + "\r\n");
                     string[] infoarr = sInfo.Split('>');
@@ -2776,11 +2842,11 @@ namespace WDMsgServer
                         command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
                         command.Parameters.Add("@userid", MySqlDbType.VarChar).Value = user;
 
-                        if (server_type.Equals("LG"))
+                        if (server_type.Equals(ConstDef.NIC_LG_KP))
                         {
                             command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
                         }
-                        else if (server_type.Equals("SIP"))
+                        else if (server_type.Equals(ConstDef.NIC_SIP))
                         {
                             command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
                         }
@@ -2830,11 +2896,11 @@ namespace WDMsgServer
                         command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
                         command.Parameters.Add("@userid", MySqlDbType.VarChar).Value = user;
 
-                        if (server_type.Equals("LG"))
+                        if (server_type.Equals(ConstDef.NIC_LG_KP))
                         {
                             command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
                         }
-                        else if (server_type.Equals("SIP"))
+                        else if (server_type.Equals(ConstDef.NIC_SIP))
                         {
                             command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
                         }
@@ -2894,11 +2960,11 @@ namespace WDMsgServer
                         command.Parameters.Add("@userid", MySqlDbType.VarChar).Value = user;
                         command.Parameters.Add("@duration", MySqlDbType.VarChar).Value = call_duration;
 
-                        if (server_type.Equals("LG"))
+                        if (server_type.Equals(ConstDef.NIC_LG_KP))
                         {
                             command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
                         }
-                        else if (server_type.Equals("SIP"))
+                        else if (server_type.Equals(ConstDef.NIC_SIP))
                         {
                             command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
                         }
@@ -2968,11 +3034,11 @@ namespace WDMsgServer
                     command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
                     command.Parameters.Add("@userid", MySqlDbType.VarChar).Value = user;
 
-                    if (server_type.Equals("LG"))
+                    if (server_type.Equals(ConstDef.NIC_LG_KP))
                     {
                         command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
                     }
-                    else if (server_type.Equals("SIP"))
+                    else if (server_type.Equals(ConstDef.NIC_SIP))
                     {
                         command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
                     }
@@ -3038,11 +3104,11 @@ namespace WDMsgServer
                 command.Parameters.Add("@ani", MySqlDbType.VarChar).Value = ani;
                 command.Parameters.Add("@call_id", MySqlDbType.VarChar).Value = call_id;
 
-                if (server_type.Equals("LG"))
+                if (server_type.Equals(ConstDef.NIC_LG_KP))
                 {
                     command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "1";
                 }
-                else if(server_type.Equals("SIP"))
+                else if(server_type.Equals(ConstDef.NIC_SIP))
                 {
                     command.Parameters.Add("@pbx_type", MySqlDbType.VarChar).Value = "2";
                 }
@@ -5563,21 +5629,21 @@ namespace WDMsgServer
                     logWrite("log 폴더 생성");
                 }
 
-                DirectoryInfo updaterDir = new DirectoryInfo("c:\\MiniCTI\\AutoUpdater_Server_Demo");
+                DirectoryInfo updaterDir = new DirectoryInfo(UpdateTargetDir);
                 if (!updaterDir.Exists)
                 {
                     updaterDir.Create();
                 }
 
                 FileInfo[] files = null;
-                DirectoryInfo update = new DirectoryInfo(Application.StartupPath + "\\AutoUpdater_Server_Demo");
+                DirectoryInfo update = new DirectoryInfo(UpdateAppDir);
 
                 if (update.Exists)
                 {
                     files = update.GetFiles();
                     foreach (FileInfo fi in files)
                     {
-                        FileInfo finfo = new FileInfo("C:\\MiniCTI\\AutoUpdater_Server_Demo\\" + fi.Name);
+                        FileInfo finfo = new FileInfo(UpdateTargetDir + "\\" + fi.Name);
                         fi.CopyTo(finfo.FullName, true);
                     }
                 }
@@ -5882,7 +5948,7 @@ namespace WDMsgServer
                 int delay = Convert.ToInt32(calltestform.txtbox_time.Text);
 
 
-                if (server_type.Equals("LG"))
+                if (server_type.Equals(ConstDef.NIC_LG_KP))
                 {
                     RecvMessage("Ringing", aniNum);
                     if (extNum.Length > 0)
@@ -5891,7 +5957,7 @@ namespace WDMsgServer
                         RecvMessage("Answer", aniNum + ">" + extNum);
                     }
                 }
-                else if (server_type.Equals("SIP"))
+                else if (server_type.Equals(ConstDef.NIC_SIP))
                 {
                     string call_id = DateTime.Now.ToString("yyyyMMddHHmmss#" + aniNum);
                     RecvMessage("Ringing", aniNum + "|" + extNum + "|" + call_id);
@@ -5904,7 +5970,7 @@ namespace WDMsgServer
                         RecvMessage("HangUp", aniNum + "|" + extNum + "|" + call_id);
                     }
                 }
-                else if (server_type.Equals("CI1") || server_type.Equals("CI2"))
+                else if (server_type.Equals(ConstDef.NIC_CID_PORT1) || server_type.Equals(ConstDef.NIC_CID_PORT2))
                 {
                     RecvMessage("Ringing", aniNum);
                     if (extNum.Length > 0)
@@ -5955,7 +6021,7 @@ namespace WDMsgServer
                     }
                     else
                     {
-                        if (Gubun.Equals("SIP"))  //Status Line
+                        if (Gubun.Equals(ConstDef.NIC_SIP))  //Status Line
                         {
                             string[] sipArr = line.Split(' ');
                             if (sipArr.Length > 0)
@@ -6077,7 +6143,7 @@ namespace WDMsgServer
             {
                 if (dbinfo.cbx_modify.CheckState == CheckState.Checked)
                 {
-                    xmldoc.Load("WDMsgServer_Demo.exe.config");
+                    xmldoc.Load(AppConfigName);
                     XmlNode node = xmldoc.SelectSingleNode("//appSettings");
                     if (node.HasChildNodes)
                     {
@@ -6105,7 +6171,7 @@ namespace WDMsgServer
                             }
                         }
                     }
-                    xmldoc.Save("WDMsgServer_Demo.exe.config");
+                    xmldoc.Save(AppConfigName);
                     System.Configuration.ConfigurationSettings.AppSettings.Set("DB_HOST", dbinfo.tbx_host.Text);
                     System.Configuration.ConfigurationSettings.AppSettings.Set("DB_NAME", dbinfo.tbx_dbname.Text);
                     System.Configuration.ConfigurationSettings.AppSettings.Set("DB_USER", dbinfo.tbx_id.Text);

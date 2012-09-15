@@ -103,6 +103,7 @@
     <Compile Include="MemberListForm.Designer.cs">
       <DependentUpon>MemberListForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="MsgDef.cs" />
     <Compile Include="MsgSvrForm.cs">
       <SubType>Form</SubType>
     </Compile>
