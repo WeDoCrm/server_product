@@ -91,6 +91,7 @@
       <DependentUpon>CallTestForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Client.cs" />
+    <Compile Include="CommonUtil.cs" />
     <Compile Include="DBInfoForm.cs">
       <SubType>Form</SubType>
     </Compile>

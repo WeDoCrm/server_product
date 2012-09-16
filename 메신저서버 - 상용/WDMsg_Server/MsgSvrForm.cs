@@ -1132,79 +1132,77 @@ namespace WDMsgServer
             }
         }
 
-        private bool checkWincapInstall2()
-        {
-            string keyName;
-
-            // search in: CurrentUser
-            keyName = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
-            if (ExistsInRemoteSubKey(p_machineName, RegistryHive.CurrentUser, keyName, "DisplayName", p_name) == true)
-            {
-                return true;
-            }
-
-            // search in: LocalMachine_32
-            keyName = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
-            if (ExistsInRemoteSubKey(p_machineName, RegistryHive.LocalMachine, keyName, "DisplayName", p_name) == true)
-            {
-                return true;
-            }
-
-            // search in: LocalMachine_64
-            keyName = @"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
-            if (ExistsInRemoteSubKey(p_machineName, RegistryHive.LocalMachine, keyName, "DisplayName", p_name) == true)
-            {
-                return true;
-            }
-
-            return false;
-        }
         private bool checkWincapInstall()
         {
-            RegistryKey Hklm = Registry.LocalMachine;
-            RegistryKey HkSoftware = Hklm.OpenSubKey("Software");
-            if (HkSoftware.SubKeyCount == 0)
+
+            string MACHINE_NAME = Environment.MachineName;
+            string WINPCAP_NAME = ConstDef.WINPCAP_INSTALLNAME;
+            bool isAppInstalled = false;
+            try
             {
-                HkSoftware = Hklm.OpenSubKey("SOFTWARE");
+                isAppInstalled = CommonUtil.IsAppInstalled(MACHINE_NAME, WINPCAP_NAME);
+              //  string msg = string.Format("Application '{0}' is {1} on the remote-machine '{2}'!",
+              //WINPCAP_NAME,
+              //isAppInstalled ? "installed" : "NOT installed",
+              //MACHINE_NAME);
+              //  MessageBox.Show(msg);
             }
-            RegistryKey HkMicrosoft = HkSoftware.OpenSubKey("Microsoft");
-            RegistryKey HkWindows = HkMicrosoft.OpenSubKey("Windows");
-            RegistryKey HkCurrent = HkWindows.OpenSubKey("CurrentVersion");
-            RegistryKey HkUninstall = HkCurrent.OpenSubKey("uninstall");
-
-            // 프로그램 목록에 대한 정보를 string배열에 넣는다. 
-            string[] regInfo = null;
-            regInfo = HkUninstall.GetSubKeyNames();
-            bool isExist = false;
-
-
-            foreach (string pn in regInfo)
+            catch (Exception ex)
             {
-                //logWrite("SubKey = " + pn);
-                RegistryKey key = HkUninstall.OpenSubKey(pn);
-
-                foreach (string name in key.GetValueNames())
-                {
-                    if (name.Equals("DisplayName"))
-                    {
-                        string value = key.GetValue(name).ToString();
-                        if (value.Contains("WinPcap"))
-                        {
-                            logWrite(value + " 설치되었음");
-                            isExist = true;
-                        }
-                        break;
-                    }
-                }
-
-                if (isExist == true)
-                {
-                    break;
-                }
+                logWrite("WinPcap Not Installed.:"+ex.Message);
             }
 
-            return isExist;
+            return isAppInstalled;
         }
+
+        //private bool checkWincapInstall()
+        //{
+        //    RegistryKey Hklm = Registry.LocalMachine;
+        //    RegistryKey HkSoftware = Hklm.OpenSubKey("Software");
+        //    if (HkSoftware.SubKeyCount == 0)
+        //    {
+        //        HkSoftware = Hklm.OpenSubKey("SOFTWARE");
+        //    }
+        //    RegistryKey HkMicrosoft = HkSoftware.OpenSubKey("Microsoft");
+        //    RegistryKey HkWindows = HkMicrosoft.OpenSubKey("Windows");
+        //    RegistryKey HkCurrent = HkWindows.OpenSubKey("CurrentVersion");
+        //    RegistryKey HkUninstall = HkCurrent.OpenSubKey("uninstall");
+
+        //    // 프로그램 목록에 대한 정보를 string배열에 넣는다. 
+        //    string[] regInfo = null;
+        //    regInfo = HkUninstall.GetSubKeyNames();
+        //    bool isExist = false;
+
+
+        //    foreach (string pn in regInfo)
+        //    {
+        //        //logWrite("SubKey = " + pn);
+        //        RegistryKey key = HkUninstall.OpenSubKey(pn);
+
+        //        foreach (string name in key.GetValueNames())
+        //        {
+        //            if (name.Equals("DisplayName"))
+        //            {
+        //                string value = key.GetValue(name).ToString();
+        //                if (value.Contains("WinPcap"))
+        //                {
+        //                    logWrite(value + " 설치되었음");
+        //                    isExist = true;
+        //                }
+        //                break;
+        //            }
+        //        }
+
+        //        if (isExist == true)
+        //        {
+        //            break;
+        //        }
+        //    }
+
+        //    return isExist;
+        //}
+
+
 
         private void winp_Exited(object sender, EventArgs e)
         {
