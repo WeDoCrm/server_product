@@ -295,9 +295,9 @@ namespace WDMsgServer
                 server_type = System.Configuration.ConfigurationSettings.AppSettings["SVR_TYPE"];
                 FtpHost = System.Configuration.ConfigurationSettings.AppSettings["FtpHost"].ToString();
                 tempFolder = System.Configuration.ConfigurationSettings.AppSettings["FtpLocalFolder"].ToString();
-                passwd = System.Configuration.ConfigurationSettings.AppSettings["FtpPass"].ToString();
+                passwd = ConstDef.FtpPass;// System.Configuration.ConfigurationSettings.AppSettings["FtpPass"].ToString();
                 FtpPort = int.Parse(System.Configuration.ConfigurationSettings.AppSettings["FtpPort"].ToString());
-                FtpUsername = System.Configuration.ConfigurationSettings.AppSettings["FtpUserName"].ToString();
+                FtpUsername = ConstDef.FtpUserName;//System.Configuration.ConfigurationSettings.AppSettings["FtpUserName"].ToString();
                 updaterDir = System.Configuration.ConfigurationSettings.AppSettings["UpdaterDir"].ToString();
                 version = System.Configuration.ConfigurationSettings.AppSettings["FtpVersion"].ToString();
 
@@ -457,7 +457,7 @@ namespace WDMsgServer
             {
                 checkFirstStart(com_code, com_name);
                 commctl.Select_Type(server_type);
-                commctl.Connect(server_device);
+                commctl.Connect(server_device, ConstDef.DEBUG);
                 ListenThread = new Thread(StartListener);
                 ListenThread.Start();
                 svrStart = true;
@@ -2877,10 +2877,16 @@ namespace WDMsgServer
                 {
                     call_start = result_time.ToString("yyyyMMddHHmmss");
                     logWrite("call_start = " + call_start);
-
+                    
                     if (CallLogTable.ContainsKey(call_id))
                     {
                         CallLogTable.Remove(call_id);
+
+                        if (conn_callog.State != ConnectionState.Open)
+                        {
+                            conn_callog = GetmysqlConnection();
+                            conn_callog.Open();
+                        }
 
                         MySqlCommand command = new MySqlCommand();
                         command.Connection = conn_callog;

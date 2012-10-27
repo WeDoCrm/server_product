@@ -16,5 +16,14 @@
         public const string NIC_CID_PORT1 = "CI1";
         public const string NIC_CID_PORT2 = "CI2";
         public const string NIC_SS_KP = "SS";
+
+        public const string DB_NAME = "wedo_db";
+        public const string DB_USER = "root";
+        public const string DB_PASS = "Genesys!@#";
+        public const string FtpUserName ="eclues";
+        public const string FtpPass = "eclues!@";
+        public const string LICENSE_PORT ="5999";
+
+        public const bool DEBUG = false;
     }
 }
