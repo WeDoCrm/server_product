@@ -78,6 +78,7 @@
             this.txtbox_time.Name = "txtbox_time";
             this.txtbox_time.Size = new System.Drawing.Size(100, 21);
             this.txtbox_time.TabIndex = 5;
+            this.txtbox_time.Text = "1000";
             // 
             // label3
             // 
@@ -91,7 +92,7 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(51, 167);
+            this.button1.Location = new System.Drawing.Point(44, 167);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 8;
@@ -101,7 +102,7 @@
             // 
             // btn_confirm
             // 
-            this.btn_confirm.Location = new System.Drawing.Point(160, 167);
+            this.btn_confirm.Location = new System.Drawing.Point(153, 167);
             this.btn_confirm.Name = "btn_confirm";
             this.btn_confirm.Size = new System.Drawing.Size(75, 23);
             this.btn_confirm.TabIndex = 9;

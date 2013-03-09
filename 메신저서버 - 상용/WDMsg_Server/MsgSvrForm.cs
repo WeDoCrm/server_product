@@ -457,7 +457,7 @@ namespace WDMsgServer
             {
                 checkFirstStart(com_code, com_name);
                 commctl.Select_Type(server_type);
-                commctl.Connect(server_device, ConstDef.DEBUG);
+                commctl.Connect(server_device);
                 ListenThread = new Thread(StartListener);
                 ListenThread.Start();
                 svrStart = true;
@@ -2331,13 +2331,15 @@ namespace WDMsgServer
                             case "Ringing":
                                 string cname = "";
 
+                                bool needAnswer = false;////Answer가 안들어오는 경우를 감안 Ringing=>Answer로 바로 처리 20130306   부천 대부 dk전용
+
                                 if (!CallLogTable.ContainsKey(infoarr[2]))
                                 {
                                     cname = getCustomerNM(infoarr[0]);
                                     if (ExtensionList.Count > 0 && ExtensionList.ContainsKey(infoarr[1]))
                                     {
                                         iep = (IPEndPoint)ExtensionList[infoarr[1]];
-                                        SendRinging("Ring|" + infoarr[0] + "|" + cname + "|" + server_type, iep);
+                                        needAnswer = SendRinging("Ring|" + infoarr[0] + "|" + cname + "|" + server_type, iep);
                                     }
 
                                     lock (CallLogTable)
@@ -2368,9 +2370,11 @@ namespace WDMsgServer
                                 {
                                     logWrite(infoarr[2] + " is already inbounded");
                                 }
-                                break;
-
-                            case "Answer":
+                                if (!needAnswer)
+                                    break;
+                                //break;  //Answer가 안들어오는 경우를 감안 Ringing=>Answer로 바로 처리 20130306   부천 대부 dk전용
+                                Thread.Sleep(2000);
+                            //case "Answer":
 
                                 if (CallLogTable.ContainsKey(infoarr[2]))
                                 {
@@ -4855,7 +4859,7 @@ namespace WDMsgServer
                     //                SendErrorList.Add((string)de.Key);
                     //            }
                     //            break;
-                    //        }
+                    //        
                     //    }
                     //}
                 }
@@ -4869,7 +4873,7 @@ namespace WDMsgServer
 
         public bool SendRinging(string msg, IPEndPoint iep)
         {
-            bool isError = false;
+            bool result = false;
             try
             {
 
@@ -4905,6 +4909,7 @@ namespace WDMsgServer
                             {
                                 logWrite("응답");
                                 //logWrite("보낸 메시지 :" + msg);
+                                result = true;
                                 break;
                             }
                         }
@@ -4919,7 +4924,7 @@ namespace WDMsgServer
             {
                 logWrite(exception.ToString());
             }
-            return isError;
+            return result;
         }
 
         //public void SendMsg(string msg, Socket sendsocket)
@@ -5587,7 +5592,7 @@ namespace WDMsgServer
             try
             {
                 AddText = new AddTextDelegate(writeLogBox);
-                svrLog += "( " + DateTime.Now.ToString() + ")" + "\r\n";
+                svrLog = "[" + DateTime.Now.ToString() + "] " + svrLog + "\r\n";
                 if (LogBox.InvokeRequired)
                 {
                     Invoke(AddText, svrLog);
@@ -5972,6 +5977,8 @@ namespace WDMsgServer
 
                         Thread.Sleep(delay);
                         RecvMessage("HangUp", aniNum + "|" + extNum + "|" + call_id);
+                        //RecvMessage("Abandon", aniNum + "|" + extNum + "|" + call_id);
+                        
                     }
                 }
                 else if (server_type.Equals(ConstDef.NIC_CID_PORT1) || server_type.Equals(ConstDef.NIC_CID_PORT2))
