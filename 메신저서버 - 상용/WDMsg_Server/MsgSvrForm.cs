@@ -33,24 +33,25 @@ namespace WDMsgServer
 
         #region 기본 서버설정 정보...
 
+        //라이센스파일로 교체 2013/05/13
         //라이선스 서버 정보
-        private string SVR_HOST = null;
-        private string LICENSE_PORT = null;
+        //private string SVR_HOST = null;
+        //private string LICENSE_PORT = null;
+        private LicenseHandler mLicenseHandler;
+        private string licenseDir;
+        private string MACID = null;
+        private string mVersion;
 
-        //테스트 DB 정보
+        private static System.Windows.Forms.Timer timerForLicense;
+                        
+
+        //DB 정보
         private string WDdbHost = null;
         private string WDdbName = null;
         private string WDdbUser = null;
         private string WDdbPass = null;
 
-        //실 DB 정보
-        //private string WDdbHost = null;
-        //private string WDdbName = null;
-        //private string WDdbUser = null;
-        //private string WDdbPass = null;
-
         //기본 설정 정보
-        private bool IsProductMode = false;
         private string AppName = "";
         private string AppConfigName = "";
         private string AppRegName = "";
@@ -58,17 +59,6 @@ namespace WDMsgServer
         private string UpdateAppDir = "";
 
 
-        //업데이트 서버 정보
-        private string FtpHost = null;
-        private string FtpUsername = null;
-        private string passwd = null;
-        private string version = null;
-        private string updaterDir = null;
-        private string tempFolder = null;
-        private int FtpPort = 0;
-        private bool noActive = false;
-
-        private static System.Windows.Forms.Timer timerForLicense;
         private System.Windows.Forms.Timer callLog_timer;
         private int listenport = 0;
         private int sendport = 0;
@@ -140,9 +130,7 @@ namespace WDMsgServer
         private bool CustomerCacheSwitch = false;
         private bool CustomerCacheReload = false;
         private static bool serviceStart = false;
-        private string MACID = null;
         Process winp;
-        private VersionCheckForm versioncheckform = null;
 
         delegate void stringDele(string str);
         delegate void ringingDele(string st1, string st2, string st3);
@@ -174,20 +162,11 @@ namespace WDMsgServer
                 AppName = temp.Substring(0, temp.IndexOf('.'));
             }
 
-            IsProductMode = !(AppName.ToUpper().Contains(ConstDef.STR_DEMO));
-
             AppConfigName = string.Format(ConstDef.APP_CONFIG_NAME, temp);
-            if (IsProductMode) {
-                AppRegName = ConstDef.REG_APP_NAME;
-                UpdateTargetDir = ConstDef.WORK_DIR + ConstDef.UPDT_DIR;
-                UpdateAppDir = Application.StartupPath + ConstDef.UPDT_DIR;
-            } else {
-                AppRegName = ConstDef.REG_APP_NAME_DEMO;
-                UpdateTargetDir = ConstDef.WORK_DIR + ConstDef.UPDT_DIR_DEMO;
-                UpdateAppDir = Application.StartupPath + ConstDef.UPDT_DIR_DEMO;
-            }
-            logWrite("Product Mode[" + AppName + "]["+IsProductMode +"]");
-
+            AppRegName = ConstDef.REG_APP_NAME;
+            UpdateTargetDir = ConstDef.WORK_DIR + ConstDef.UPDT_DIR;
+            UpdateAppDir = Application.StartupPath + ConstDef.UPDT_DIR;
+            licenseDir = ConstDef.WORK_DIR + ConstDef.LICENSE_DIR;
 
             svr_FileCheck();                        //로그파일, 폴더 생성
             logWrite("svr_FileCheck() 완료!");
@@ -271,7 +250,7 @@ namespace WDMsgServer
             int hour = DateTime.Now.Hour;
             if (hour == 1)
             {
-                registerLicenseServer();
+                registerLicenseInfo();
             }
             
         }
@@ -280,8 +259,6 @@ namespace WDMsgServer
         {
             try
             {
-                SVR_HOST = System.Configuration.ConfigurationSettings.AppSettings["SVR_HOST"];
-                LICENSE_PORT = System.Configuration.ConfigurationSettings.AppSettings["LICENSE_PORT"];
                 WDdbHost = System.Configuration.ConfigurationSettings.AppSettings["DB_HOST"];
                 WDdbName = System.Configuration.ConfigurationSettings.AppSettings["DB_NAME"];
                 WDdbUser = System.Configuration.ConfigurationSettings.AppSettings["DB_USER"];
@@ -293,13 +270,8 @@ namespace WDMsgServer
                 fileport = Convert.ToInt32(System.Configuration.ConfigurationSettings.AppSettings["SVR_FILEPORT"]);
                 com_code = System.Configuration.ConfigurationSettings.AppSettings["COM_CODE"];
                 server_type = System.Configuration.ConfigurationSettings.AppSettings["SVR_TYPE"];
-                FtpHost = System.Configuration.ConfigurationSettings.AppSettings["FtpHost"].ToString();
-                tempFolder = System.Configuration.ConfigurationSettings.AppSettings["FtpLocalFolder"].ToString();
-                passwd = ConstDef.FtpPass;// System.Configuration.ConfigurationSettings.AppSettings["FtpPass"].ToString();
-                FtpPort = int.Parse(System.Configuration.ConfigurationSettings.AppSettings["FtpPort"].ToString());
-                FtpUsername = ConstDef.FtpUserName;//System.Configuration.ConfigurationSettings.AppSettings["FtpUserName"].ToString();
-                updaterDir = System.Configuration.ConfigurationSettings.AppSettings["UpdaterDir"].ToString();
-                version = System.Configuration.ConfigurationSettings.AppSettings["FtpVersion"].ToString();
+
+                mVersion = System.Configuration.ConfigurationSettings.AppSettings["FtpVersion"].ToString();
 
                 if (System.Configuration.ConfigurationSettings.AppSettings["AUTO_START"].Length > 0)
                 {
@@ -322,103 +294,87 @@ namespace WDMsgServer
             }
         }
 
-        private void showVersionCheckForm()
-        {
-            versioncheckform = new VersionCheckForm();
-            versioncheckform.TopMost = true;
-            versioncheckform.Show();
-        }
+        //private void showVersionCheckForm()
+        //{
+        //    versioncheckform = new VersionCheckForm();
+        //    versioncheckform.TopMost = true;
+        //    versioncheckform.Show();
+        //}
 
-        private void VersionCheckFormClose()
-        {
-            try
-            {
-                versioncheckform.Close();
-            }
-            catch (Exception ex)
-            {
-                logWrite(ex.ToString());
-            }
-        }
+        //private void VersionCheckFormClose()
+        //{
+        //    try
+        //    {
+        //        versioncheckform.Close();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        logWrite(ex.ToString());
+        //    }
+        //}
 
-        private void VersionCheck()
-        {
-            Thread versioncheckthread = new Thread(new ThreadStart(showVersionCheckForm));
-            versioncheckthread.Start();
-            NoParamDele checkdele = new NoParamDele(VersionCheckFormClose);
+        //private void VersionCheck()
+        //{
+        //    Thread versioncheckthread = new Thread(new ThreadStart(showVersionCheckForm));
+        //    versioncheckthread.Start();
+        //    NoParamDele checkdele = new NoParamDele(VersionCheckFormClose);
             
 
-            bool isUpdate = false;
-            try
-            {
-                Uri ftpuri = new Uri(FtpHost);
-                FtpWebRequest wr = (FtpWebRequest)WebRequest.Create(ftpuri);
-                wr.Method = WebRequestMethods.Ftp.ListDirectory;
-                wr.Credentials = new NetworkCredential(FtpUsername, passwd);
-                FtpWebResponse wres = (FtpWebResponse)wr.GetResponse();
-                Stream st = wres.GetResponseStream();
-                string SVRver = null;
+        //    bool isUpdate = false;
+        //    try
+        //    {
+        //        Uri ftpuri = new Uri(FtpHost);
+        //        FtpWebRequest wr = (FtpWebRequest)WebRequest.Create(ftpuri);
+        //        wr.Method = WebRequestMethods.Ftp.ListDirectory;
+        //        wr.Credentials = new NetworkCredential(FtpUsername, passwd);
+        //        FtpWebResponse wres = (FtpWebResponse)wr.GetResponse();
+        //        Stream st = wres.GetResponseStream();
+        //        string SVRver = null;
 
-                if (st.CanRead)
-                {
-                    StreamReader sr = new StreamReader(st);
-                    SVRver = sr.ReadLine();
-                }
+        //        if (st.CanRead)
+        //        {
+        //            StreamReader sr = new StreamReader(st);
+        //            SVRver = sr.ReadLine();
+        //        }
 
-                logWrite("Server Version = " + SVRver);
-                logWrite("Client Version = " + version);
+        //        logWrite("Server Version = " + SVRver);
+        //        logWrite("Client Version = " + version);
 
-                if (SVRver.Equals(version.Trim()))
-                {
-                    version = SVRver;
+        //        if (SVRver.Equals(version.Trim()))
+        //        {
+        //            version = SVRver;
 
-                    logWrite("Last Version is already Installed!");
-                    Invoke(checkdele);
-                }
-                else
-                {
-                    string[] ver = SVRver.Split('.');
-                    string[] now = version.Split('.');
-                    for (int v = 0; v < ver.Length; v++)
-                    {
-                        if (!ver[v].Equals(now[v]))
-                        {
-                            if (Convert.ToInt32(ver[v]) > Convert.ToInt32(now[v]))
-                            {
-                                Invoke(checkdele);
-                                NoParamDele dele = new NoParamDele(requestUpdate);
-                                Invoke(dele);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logWrite(ex.ToString());
-            }
-            noActive = true;
+        //            logWrite("Last Version is already Installed!");
+        //            Invoke(checkdele);
+        //        }
+        //        else
+        //        {
+        //            string[] ver = SVRver.Split('.');
+        //            string[] now = version.Split('.');
+        //            for (int v = 0; v < ver.Length; v++)
+        //            {
+        //                if (!ver[v].Equals(now[v]))
+        //                {
+        //                    if (Convert.ToInt32(ver[v]) > Convert.ToInt32(now[v]))
+        //                    {
+        //                        Invoke(checkdele);
+        //                        NoParamDele dele = new NoParamDele(requestUpdate);
+        //                        Invoke(dele);
+        //                        break;
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        logWrite(ex.ToString());
+        //    }
+        //    noActive = true;
 
-            //return isUpdate;
-        }
-
-        private void requestUpdate()
-        {
-            try
-            {
-                this.notify_svr.Visible = false;
-                logWrite("Update Start!!" + "  " + DateTime.Now.ToShortTimeString());
-                System.Diagnostics.Process.Start(updaterDir);
-                logWrite("FtpHost : " + FtpHost);
-                Process.GetCurrentProcess().Kill();
-            }
-            catch (Exception ex)
-            {
-                logWrite(ex.ToString());
-            }
-        }
-        
+        //    //return isUpdate;
+        //}
+     
         // Cross-Thread 호출를 실행하기 위해 사용합니다.
         private delegate void AddTextDelegate(string strText);  //로그기록 델리게이트
         private delegate void MakeTree();    //전체 사용자 리스트 생성 델리게이트
@@ -435,14 +391,18 @@ namespace WDMsgServer
             try
             {
                 ShowNetworkInterfaces();
-                VersionCheck();
+                //자동버전체크 폐기 2013/05/18 
+                //VersionCheck();
+                logWrite("Installed Version = " + mVersion);
+
+
                 if (server_device == null && server_type == null)
                 {
                     setDevice();
                 }
                 else
                 {
-                    registerLicenseServer();
+                    registerLicenseInfo();
                 }
             }
             catch (Exception exception)
@@ -569,20 +529,22 @@ namespace WDMsgServer
             }
         }
 
-        private void registerLicenseServer()
+        /// <summary>
+        /// 파일에서 라이센스정보를 읽어, 유효성검사를 한다.
+        /// </summary>
+        private void registerLicenseInfo()
         {
             try
             {
                 logWrite("라이선스 체크중.....");
-                licensesock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                licensesock.Connect(SVR_HOST, Convert.ToInt32(LICENSE_PORT));
-
-                if (licensesock.Connected == true)
+                mLicenseHandler = new LicenseHandler(this.licenseDir, this.MACID);
+                mLicenseHandler.LogWriteHandler += this.OnLogWrite;
+                //파일읽음&라이센스값 decode
+                if (mLicenseHandler.ReadLicense())
                 {
-                    Thread t1 = new Thread(new ThreadStart(listenfromLicenseServer));
-                    t1.Start();
-                    byte[] message = Encoding.UTF8.GetBytes(com_code + "&" + MACID);
-                    licensesock.Send(message);
+
+                    stringDele dele = new stringDele(disposeLicenseResult);
+                    Invoke(dele, mLicenseHandler.ResultMessage);
                 }
             }
             catch (Exception ex)
@@ -591,44 +553,11 @@ namespace WDMsgServer
             }
         }
 
-
-        private void listenfromLicenseServer()
-        {
-            try
-            {
-                if (licensesock.Connected)
-                {
-                    int buffersize = 0;
-                    byte[] msgbuffer;
-                    byte[] buffer = new byte[55600];
-                    int buffercount = licensesock.Receive(buffer);
-                    logWrite("수신! : "+buffercount.ToString()+" bytes");
-                    EndPoint ep = licensesock.RemoteEndPoint;
-                    IPEndPoint statiep = (IPEndPoint)ep;
-                    logWrite("sender IP : " + statiep.Address.ToString());
-                    logWrite("sender port : " + statiep.Port.ToString());
-                    if (buffer != null && buffer.Length != 0)
-                    {
-                        msgbuffer = new byte[buffercount];
-                        for (int i = 0; i < buffercount; i++)
-                        {
-                            msgbuffer[i] = buffer[i];
-                        }
-                        string msg = Encoding.UTF8.GetString(msgbuffer);
-                        msg = msg.Trim();
-                        logWrite("수신메시지 : " + msg);
-                        stringDele dele = new stringDele(disposeLicenseResult);
-                        Invoke(dele, msg);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logWrite(ex.ToString());
-            }
-        }
-
-        private void disposeLicenseResult(string result)//result = 코드&회사명
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="result">코드&회사명&만료일자</param>
+        private void disposeLicenseResult(string result)
         {
             try
             {
@@ -640,21 +569,43 @@ namespace WDMsgServer
                 //result = 5: 중복등록
                 string license_message = "";
                 string[] license_info = result.Split('&');
-                result = license_info[0];
+
+                if (license_info.Length < 1)
+                {
+                    throw new Exception("라이센스 결과코드 오류");
+                }
+                LicenseResult resultCode = (LicenseResult)Convert.ToInt16(license_info[0]);
+
                 if (license_info.Length > 1)
                 {
                     this.com_name = license_info[1];
                 }
 
-                switch (result)
+                switch (resultCode)
                 {
-                    case "-1":
+                    case LicenseResult.ERR_INVALID_FILE:
+                        MessageBox.Show("라이센스파일이 유효하지 않습니다.\r\n 관리자에게 문의하세요.\r\n서버를 종료합니다.");
+                        license_message = "라이센스파일이 유효하지 않습니다.\r\n 관리자에게 문의하세요.\r\n서버를 종료합니다.";
+                        Process.GetCurrentProcess().Kill();
+                        break;
+                    case LicenseResult.ERR_MAC_ADDR:
+                        MessageBox.Show("Mac 주소값이 유효하지 않습니다.\r\n 관리자에게 문의하세요.\r\n서버를 종료합니다.");
+                        license_message = "Mac 주소값이 유효하지 않습니다.\r\n 관리자에게 문의하세요.\r\n서버를 종료합니다.";
+                        Process.GetCurrentProcess().Kill();
+                        break;
+                    case LicenseResult.ERR_NO_FILE:
+                        MessageBox.Show("라이센스파일이 존재하지 않습니다.\r\n 관리자에게 문의하세요.\r\n서버를 종료합니다.");
+                        license_message = "라이센스파일이 존재하지 않습니다.\r\n 관리자에게 문의하세요.\r\n서버를 종료합니다.";
+                        Process.GetCurrentProcess().Kill();
+                        break;
+
+                    case LicenseResult.ERR_UNREGISTERED:
                         MessageBox.Show("등록되지 않은 회사코드입니다.\r\n 관리자에게 문의하세요.\r\n서버를 종료합니다.");
                         license_message = "등록되지 않은 회사코드입니다.\r\n 관리자에게 문의하세요.\r\n서버를 종료합니다.";
                         Process.GetCurrentProcess().Kill();
                         break;
 
-                    case "1":
+                    case LicenseResult.ERR_EXPIRED:
                         MessageBox.Show("라이선스가 만료되었습니다. 연장 후 시작해 주세요.\r\n서버를 종료합니다.");
                         license_message = "라이선스가 만료되었습니다. 연장 후 시작해 주세요.\r\n서버를 종료합니다.";
                         foreach (DictionaryEntry de in InClientList)
@@ -667,7 +618,7 @@ namespace WDMsgServer
                         Process.GetCurrentProcess().Kill();
                         break;
 
-                    case "2":
+                    case LicenseResult.SUCCESS:
                         if (serviceStart == false)
                         {
                             initService();
@@ -677,7 +628,7 @@ namespace WDMsgServer
 
                         break;
 
-                    case "3":
+                    case LicenseResult.WARN_30_DAYS:
                         if (serviceStart == false)
                         {
                             initService();
@@ -694,7 +645,7 @@ namespace WDMsgServer
                         }
                         break;
 
-                    case "4":
+                    case LicenseResult.WARN_7_DAYS:
                         if (serviceStart == false)
                         {
                             initService();
@@ -711,19 +662,19 @@ namespace WDMsgServer
                         }
                         break;
 
-                    case "5":
-                        MessageBox.Show("해당 회사코드로 이미 사용중입니다.");
-                        license_message = "해당 회사코드로 이미 사용중입니다.";
-                        if (InClientList != null)
-                        {
-                            foreach (DictionaryEntry de in InClientList)
-                            {
-                                if (de.Value != null)
-                                {
-                                    SendMsg(license_message, (IPEndPoint)de.Value);
-                                }
-                            }
-                        }
+                    //case "5":
+                    //    MessageBox.Show("해당 회사코드로 이미 사용중입니다.");
+                    //    license_message = "해당 회사코드로 이미 사용중입니다.";
+                    //    if (InClientList != null)
+                    //    {
+                    //        foreach (DictionaryEntry de in InClientList)
+                    //        {
+                    //            if (de.Value != null)
+                    //            {
+                    //                SendMsg(license_message, (IPEndPoint)de.Value);
+                    //            }
+                    //        }
+                    //    }
                         
                         break;
                 }
@@ -1154,55 +1105,6 @@ namespace WDMsgServer
 
             return isAppInstalled;
         }
-
-        //private bool checkWincapInstall()
-        //{
-        //    RegistryKey Hklm = Registry.LocalMachine;
-        //    RegistryKey HkSoftware = Hklm.OpenSubKey("Software");
-        //    if (HkSoftware.SubKeyCount == 0)
-        //    {
-        //        HkSoftware = Hklm.OpenSubKey("SOFTWARE");
-        //    }
-        //    RegistryKey HkMicrosoft = HkSoftware.OpenSubKey("Microsoft");
-        //    RegistryKey HkWindows = HkMicrosoft.OpenSubKey("Windows");
-        //    RegistryKey HkCurrent = HkWindows.OpenSubKey("CurrentVersion");
-        //    RegistryKey HkUninstall = HkCurrent.OpenSubKey("uninstall");
-
-        //    // 프로그램 목록에 대한 정보를 string배열에 넣는다. 
-        //    string[] regInfo = null;
-        //    regInfo = HkUninstall.GetSubKeyNames();
-        //    bool isExist = false;
-
-
-        //    foreach (string pn in regInfo)
-        //    {
-        //        //logWrite("SubKey = " + pn);
-        //        RegistryKey key = HkUninstall.OpenSubKey(pn);
-
-        //        foreach (string name in key.GetValueNames())
-        //        {
-        //            if (name.Equals("DisplayName"))
-        //            {
-        //                string value = key.GetValue(name).ToString();
-        //                if (value.Contains("WinPcap"))
-        //                {
-        //                    logWrite(value + " 설치되었음");
-        //                    isExist = true;
-        //                }
-        //                break;
-        //            }
-        //        }
-
-        //        if (isExist == true)
-        //        {
-        //            break;
-        //        }
-        //    }
-
-        //    return isExist;
-        //}
-
-
 
         private void winp_Exited(object sender, EventArgs e)
         {
@@ -5583,10 +5485,18 @@ namespace WDMsgServer
             return mode;
         }
 
-      /// <summary>
-      /// 서버 로그창에 로그 쓰기 및 로그파일에 쓰기
-      /// </summary>
-      /// <param name="svrLog"></param>
+        private void OnLogWrite(object sender, StringEventArgs e)
+        {
+            this.BeginInvoke((MethodInvoker)delegate
+            {
+                logWrite(e.EventString);
+            });
+        }
+        
+        /// <summary>
+        /// 서버 로그창에 로그 쓰기 및 로그파일에 쓰기
+        /// </summary>
+        /// <param name="svrLog"></param>
         public void logWrite(string svrLog)
         {
             try

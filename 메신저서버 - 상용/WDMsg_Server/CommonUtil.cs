@@ -62,5 +62,26 @@ namespace WDMsgServer
             }
             return false;
         }
+
+        public static int GetDayDiffFromNow(string yyyymmdd)
+        {
+            string year = yyyymmdd.Substring(0, 4);
+            string month = yyyymmdd.Substring(4, 2);
+            string days = yyyymmdd.Substring(6, 2);
+            DateTime theDate = new DateTime(Convert.ToInt16(year),
+                Convert.ToInt16(month),
+                Convert.ToInt16(days));
+            double daysLeft = theDate.Subtract(DateTime.Today).TotalDays;
+            return (int)daysLeft;
+        }
+
+        public static int GetMonthDiffFromNow(string yyyymmdd)
+        {
+            DateTime theDate = new DateTime(Convert.ToInt16(yyyymmdd.Substring(0, 4)),
+                Convert.ToInt16(yyyymmdd.Substring(4, 2)),
+                Convert.ToInt16(yyyymmdd.Substring(6, 2)));
+            return ((theDate.Year - DateTime.Now.Year) * 12) + theDate.Month - DateTime.Now.Month;
+        }
+
     }
 }

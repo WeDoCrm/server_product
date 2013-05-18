@@ -98,6 +98,7 @@
     <Compile Include="DBInfoForm.Designer.cs">
       <DependentUpon>DBInfoForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="LicenseHandler.cs" />
     <Compile Include="MemberListForm.cs">
       <SubType>Form</SubType>
     </Compile>
