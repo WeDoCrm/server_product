@@ -22,6 +22,8 @@
         public const string LICENSE_DIR = "\\license\\";
         public const string LICENSE_FILE = "*license.ini";
 
+        public const string VERSION = "2.0.12";
+
     }
 
     public enum LicenseResult

@@ -271,7 +271,7 @@ namespace WDMsgServer
                 com_code = System.Configuration.ConfigurationSettings.AppSettings["COM_CODE"];
                 server_type = System.Configuration.ConfigurationSettings.AppSettings["SVR_TYPE"];
 
-                mVersion = System.Configuration.ConfigurationSettings.AppSettings["FtpVersion"].ToString();
+                mVersion = ConstDef.VERSION;
 
                 if (System.Configuration.ConfigurationSettings.AppSettings["AUTO_START"].Length > 0)
                 {
