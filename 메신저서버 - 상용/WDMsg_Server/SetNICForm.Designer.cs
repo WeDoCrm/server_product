@@ -34,13 +34,14 @@
             this.comboBox1 = new System.Windows.Forms.ComboBox();
             this.label1 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.rbt_type_cid2 = new System.Windows.Forms.RadioButton();
             this.rbt_type_cid1 = new System.Windows.Forms.RadioButton();
             this.rbt_type_lg = new System.Windows.Forms.RadioButton();
             this.rbt_type_sip = new System.Windows.Forms.RadioButton();
             this.rbt_type_ss = new System.Windows.Forms.RadioButton();
             this.label_COM_CODE = new System.Windows.Forms.Label();
             this.tbx_com_code = new System.Windows.Forms.TextBox();
-            this.rbt_type_cid2 = new System.Windows.Forms.RadioButton();
+            this.rbt_type_cid4 = new System.Windows.Forms.RadioButton();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -67,7 +68,7 @@
             this.comboBox1.FormattingEnabled = true;
             this.comboBox1.Items.AddRange(new object[] {
             ":::::::::::::::::선 택::::::::::::::::::::"});
-            this.comboBox1.Location = new System.Drawing.Point(75, 123);
+            this.comboBox1.Location = new System.Drawing.Point(75, 131);
             this.comboBox1.Name = "comboBox1";
             this.comboBox1.Size = new System.Drawing.Size(295, 20);
             this.comboBox1.TabIndex = 2;
@@ -75,7 +76,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(18, 127);
+            this.label1.Location = new System.Drawing.Point(18, 135);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(53, 12);
             this.label1.TabIndex = 3;
@@ -83,21 +84,34 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.rbt_type_cid4);
             this.groupBox1.Controls.Add(this.rbt_type_cid2);
             this.groupBox1.Controls.Add(this.rbt_type_cid1);
             this.groupBox1.Controls.Add(this.rbt_type_lg);
             this.groupBox1.Controls.Add(this.rbt_type_sip);
-            this.groupBox1.Location = new System.Drawing.Point(20, 52);
+            this.groupBox1.Location = new System.Drawing.Point(20, 42);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(350, 50);
+            this.groupBox1.Size = new System.Drawing.Size(350, 74);
             this.groupBox1.TabIndex = 4;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "전화장치 유형";
             // 
+            // rbt_type_cid2
+            // 
+            this.rbt_type_cid2.AutoSize = true;
+            this.rbt_type_cid2.Location = new System.Drawing.Point(102, 45);
+            this.rbt_type_cid2.Name = "rbt_type_cid2";
+            this.rbt_type_cid2.Size = new System.Drawing.Size(83, 16);
+            this.rbt_type_cid2.TabIndex = 4;
+            this.rbt_type_cid2.TabStop = true;
+            this.rbt_type_cid2.Tag = "CI2";
+            this.rbt_type_cid2.Text = "CID(2포트)";
+            this.rbt_type_cid2.UseVisualStyleBackColor = true;
+            // 
             // rbt_type_cid1
             // 
             this.rbt_type_cid1.AutoSize = true;
-            this.rbt_type_cid1.Location = new System.Drawing.Point(170, 23);
+            this.rbt_type_cid1.Location = new System.Drawing.Point(13, 45);
             this.rbt_type_cid1.Name = "rbt_type_cid1";
             this.rbt_type_cid1.Size = new System.Drawing.Size(83, 16);
             this.rbt_type_cid1.TabIndex = 3;
@@ -159,17 +173,17 @@
             this.tbx_com_code.Size = new System.Drawing.Size(100, 21);
             this.tbx_com_code.TabIndex = 0;
             // 
-            // rbt_type_cid2
+            // rbt_type_cid4
             // 
-            this.rbt_type_cid2.AutoSize = true;
-            this.rbt_type_cid2.Location = new System.Drawing.Point(259, 23);
-            this.rbt_type_cid2.Name = "rbt_type_cid2";
-            this.rbt_type_cid2.Size = new System.Drawing.Size(83, 16);
-            this.rbt_type_cid2.TabIndex = 4;
-            this.rbt_type_cid2.TabStop = true;
-            this.rbt_type_cid2.Tag = "CI2";
-            this.rbt_type_cid2.Text = "CID(2포트)";
-            this.rbt_type_cid2.UseVisualStyleBackColor = true;
+            this.rbt_type_cid4.AutoSize = true;
+            this.rbt_type_cid4.Location = new System.Drawing.Point(191, 45);
+            this.rbt_type_cid4.Name = "rbt_type_cid4";
+            this.rbt_type_cid4.Size = new System.Drawing.Size(83, 16);
+            this.rbt_type_cid4.TabIndex = 5;
+            this.rbt_type_cid4.TabStop = true;
+            this.rbt_type_cid4.Tag = "CI4";
+            this.rbt_type_cid4.Text = "CID(4포트)";
+            this.rbt_type_cid4.UseVisualStyleBackColor = true;
             // 
             // SetNICForm
             // 
@@ -212,5 +226,6 @@
         public System.Windows.Forms.Label label_COM_CODE;
         public System.Windows.Forms.TextBox tbx_com_code;
         public System.Windows.Forms.RadioButton rbt_type_cid2;
+        public System.Windows.Forms.RadioButton rbt_type_cid4;
     }
 }

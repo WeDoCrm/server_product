@@ -14,16 +14,14 @@
         public const string NIC_LG_KP = "LG";
         public const string NIC_CID_PORT1 = "CI1";
         public const string NIC_CID_PORT2 = "CI2";
+        public const string NIC_CID_PORT4 = "CI4";
         public const string NIC_SS_KP = "SS";
-
-        public const bool DEBUG = false;
 
         public const string LICENSE_KEY = "jf04234[0945252";
         public const string LICENSE_DIR = "\\license\\";
         public const string LICENSE_FILE = "*license.ini";
 
-        public const string VERSION = "2.0.12";
-
+        public const string VERSION = "2.0.13";
     }
 
     public enum LicenseResult

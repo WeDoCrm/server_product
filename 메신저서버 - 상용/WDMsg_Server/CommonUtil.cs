@@ -82,6 +82,5 @@ namespace WDMsgServer
                 Convert.ToInt16(yyyymmdd.Substring(6, 2)));
             return ((theDate.Year - DateTime.Now.Year) * 12) + theDate.Month - DateTime.Now.Month;
         }
-
     }
 }

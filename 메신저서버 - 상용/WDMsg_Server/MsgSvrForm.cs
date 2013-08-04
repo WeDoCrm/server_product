@@ -43,13 +43,14 @@ namespace WDMsgServer
         private string mVersion;
 
         private static System.Windows.Forms.Timer timerForLicense;
-                        
+
 
         //DB 정보
         private string WDdbHost = null;
         private string WDdbName = null;
         private string WDdbUser = null;
         private string WDdbPass = null;
+
 
         //기본 설정 정보
         private string AppName = "";
@@ -196,7 +197,10 @@ namespace WDMsgServer
         {
             try
             {
-                if (server_type.Equals(ConstDef.NIC_CID_PORT1) || server_type.Equals(ConstDef.NIC_CID_PORT2) || server_type.Equals(ConstDef.NIC_LG_KP))
+                if (server_type.Equals(ConstDef.NIC_CID_PORT1) 
+                    || server_type.Equals(ConstDef.NIC_CID_PORT2)
+                    || server_type.Equals(ConstDef.NIC_CID_PORT4)
+                    || server_type.Equals(ConstDef.NIC_LG_KP))
                 {
                     lock (CallLogTable)
                     {
@@ -374,7 +378,8 @@ namespace WDMsgServer
 
         //    //return isUpdate;
         //}
-     
+
+       
         // Cross-Thread 호출를 실행하기 위해 사용합니다.
         private delegate void AddTextDelegate(string strText);  //로그기록 델리게이트
         private delegate void MakeTree();    //전체 사용자 리스트 생성 델리게이트
@@ -394,7 +399,6 @@ namespace WDMsgServer
                 //자동버전체크 폐기 2013/05/18 
                 //VersionCheck();
                 logWrite("Installed Version = " + mVersion);
-
 
                 if (server_device == null && server_type == null)
                 {
@@ -662,20 +666,20 @@ namespace WDMsgServer
                         }
                         break;
 
-                    //case "5":
-                    //    MessageBox.Show("해당 회사코드로 이미 사용중입니다.");
-                    //    license_message = "해당 회사코드로 이미 사용중입니다.";
-                    //    if (InClientList != null)
-                    //    {
-                    //        foreach (DictionaryEntry de in InClientList)
-                    //        {
-                    //            if (de.Value != null)
-                    //            {
-                    //                SendMsg(license_message, (IPEndPoint)de.Value);
-                    //            }
-                    //        }
-                    //    }
-                        
+                        //case "5":
+                        //    MessageBox.Show("해당 회사코드로 이미 사용중입니다.");
+                        //    license_message = "해당 회사코드로 이미 사용중입니다.";
+                        //    if (InClientList != null)
+                        //    {
+                        //        foreach (DictionaryEntry de in InClientList)
+                        //        {
+                        //            if (de.Value != null)
+                        //            {
+                        //                SendMsg(license_message, (IPEndPoint)de.Value);
+                        //            }
+                        //        }
+                        //    }
+
                         break;
                 }
             }
@@ -684,6 +688,7 @@ namespace WDMsgServer
                 logWrite(ex.ToString());
             }
         }
+
 
         public void ShowNetworkInterfaces()
         {
@@ -1034,7 +1039,9 @@ namespace WDMsgServer
                         case ConstDef.NIC_CID_PORT2:
                             nicform.rbt_type_cid2.Checked = true;
                             break;
-
+                        case ConstDef.NIC_CID_PORT4:
+                            nicform.rbt_type_cid4.Checked = true;
+                            break;
                         case ConstDef.NIC_SS_KP:
                             nicform.rbt_type_ss.Checked = true;
                             break;
@@ -1050,6 +1057,7 @@ namespace WDMsgServer
                 nicform.btn_cancel.MouseClick += new MouseEventHandler(btn_cancel_MouseClick);
                 nicform.rbt_type_cid1.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
                 nicform.rbt_type_cid2.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
+                nicform.rbt_type_cid4.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
                 nicform.rbt_type_lg.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
                 nicform.rbt_type_ss.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
                 nicform.rbt_type_sip.CheckedChanged += new EventHandler(rbt_type_CheckedChanged);
@@ -2573,7 +2581,9 @@ namespace WDMsgServer
                             break;
                     }
                 }
-                else if (server_type.Equals(ConstDef.NIC_CID_PORT1) || server_type.Equals(ConstDef.NIC_CID_PORT2))
+                else if (server_type.Equals(ConstDef.NIC_CID_PORT1)
+                    || server_type.Equals(ConstDef.NIC_CID_PORT2)
+                    || server_type.Equals(ConstDef.NIC_CID_PORT4))
                 {
                     logWrite("Event : " + sEvent + "  sInfo : " + sInfo + "\r\n");
                     string[] infoarr = sInfo.Split('>');
@@ -5492,7 +5502,7 @@ namespace WDMsgServer
                 logWrite(e.EventString);
             });
         }
-        
+
         /// <summary>
         /// 서버 로그창에 로그 쓰기 및 로그파일에 쓰기
         /// </summary>
@@ -5730,16 +5740,20 @@ namespace WDMsgServer
 
         private void stop_Click(object sender, EventArgs e)
         {
+            stopApplication();
+        }
 
-            if (svrStart == true)
+        private void stopApplication()
+        {
+            DialogResult result = MessageBox.Show(this, "정말 메신저 서버를 중단시키겠습니까?", "서버 중단 경고", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+            if (result == DialogResult.OK)
             {
-                DialogResult result = MessageBox.Show(this, "정말 메신저 서버를 중단시키겠습니까?", "서버 중단 경고", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
-                if (result == DialogResult.OK)
-                {
-                    ServerStop();
-                }
+                ServerStop();
+                Application.ExitThread();
+                Application.Exit();
+                notify_svr.Visible = false;
+                Process.GetCurrentProcess().Kill();
             }
-
         }
 
         private void MsgSvrForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -5891,7 +5905,9 @@ namespace WDMsgServer
                         
                     }
                 }
-                else if (server_type.Equals(ConstDef.NIC_CID_PORT1) || server_type.Equals(ConstDef.NIC_CID_PORT2))
+                else if (server_type.Equals(ConstDef.NIC_CID_PORT1)
+                    || server_type.Equals(ConstDef.NIC_CID_PORT2)
+                    || server_type.Equals(ConstDef.NIC_CID_PORT4))
                 {
                     RecvMessage("Ringing", aniNum);
                     if (extNum.Length > 0)
@@ -6294,33 +6310,12 @@ namespace WDMsgServer
 
         private void 서버종료ToolStripMenuItem_Click(object sender, EventArgs e)
         {
-
-            DialogResult result = MessageBox.Show(this, "정말 메신저 서버를 중단시키겠습니까?", "서버 중단 경고", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
-            if (result == DialogResult.OK)
-            {
-                ServerStop();
-                Application.ExitThread();
-                Application.Exit();
-                notify_svr.Visible = false;
-                Process.GetCurrentProcess().Kill();
-
-            }
-
+            stopApplication();
         }
 
         private void MnServerStop_Click(object sender, EventArgs e)
         {
-
-            DialogResult result = MessageBox.Show(this, "정말 메신저 서버를 중단시키겠습니까?", "서버 중단 경고", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
-            if (result == DialogResult.OK)
-            {
-                ServerStop();
-                Application.ExitThread();
-                Application.Exit();
-                notify_svr.Visible = false;
-                Process.GetCurrentProcess().Kill();
-            }
-
+            stopApplication();
         }
 
         private void MnServerStart_Click(object sender, EventArgs e)

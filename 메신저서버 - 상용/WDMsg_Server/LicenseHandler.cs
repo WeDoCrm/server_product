@@ -101,7 +101,7 @@ namespace WDMsgServer
                 }
                 ReadFile(fileName);
                 string decodedLicenseKey = Decode(licenseKey);
-                OnWriteLog(string.Format("Decoded LicenseKey[{0}]\n", decodedLicenseKey.Trim()));
+                OnWriteLog(string.Format("Decoded LicenseKey[{0}]", decodedLicenseKey.Trim()));
                 string[] keyItems = decodedLicenseKey.Split('_');
 
                 if (keyItems.Length != 5)
@@ -126,7 +126,7 @@ namespace WDMsgServer
                 //if (!macAddress.Equals(keyItems[2])) result = false;
                 if (!macAddress.Equals(keyItems[2]))
                 {
-                    OnWriteLog("License file 잘못된 mac address값.");
+                    OnWriteLog(string.Format("License file 잘못된 mac address값.실제 mac address[{0}]", macAddress));
                     resultCode = (int)LicenseResult.ERR_MAC_ADDR;
                     throw new Exception();
                 }
