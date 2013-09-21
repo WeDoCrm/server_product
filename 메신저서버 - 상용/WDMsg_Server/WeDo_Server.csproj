@@ -112,6 +112,7 @@
     <Compile Include="MsgSvrForm.Designer.cs">
       <DependentUpon>MsgSvrForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="MySqlHandler.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="CallTestForm.resx">

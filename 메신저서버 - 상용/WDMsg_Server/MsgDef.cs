@@ -1,4 +1,5 @@
-﻿namespace WDMsgServer
+﻿using System;
+namespace WDMsgServer
 {
     public class ConstDef {
         public const string APP_CONFIG_NAME = "{0}.exe.config";
@@ -34,5 +35,16 @@
         SUCCESS = 1,
         WARN_30_DAYS = 2,
         WARN_7_DAYS = 3
+    }
+
+
+    public class StringEventArgs : EventArgs
+    {
+        public string EventString { get; set; }
+
+        public StringEventArgs(string value)
+        {
+            this.EventString = value;
+        }
     }
 }

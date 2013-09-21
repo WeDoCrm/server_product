@@ -311,16 +311,6 @@ namespace WDMsgServer
         }
     }
 
-    public class StringEventArgs : EventArgs
-    {
-        public string EventString { get; set; }
-
-        public StringEventArgs(string value)
-        {
-            this.EventString = value;
-        }
-    }
-
     //C++ Enc/Dec 소스
     //CString Encoding(LPCTSTR src)
     //{
