@@ -2609,7 +2609,22 @@ namespace WDMsgServer
         }
 
         /// <summary>
+        /// 콜로그 등록
         /// answer/Hangup/abandon인 경우
+        /// ---------------------------------
+        /// call_result
+        /// 1: EventRinging
+        /// 2: EventDialing
+        /// 3: EventEstablished
+        /// 4: EventAbandoned
+        /// 5: EventReleased
+        /// ---------------------------------
+        /// call_type
+        /// 1:인바운드
+        /// 2:아웃바운드
+        /// 3:내선통화
+        /// 4:기타
+        /// ---------------------------------
         /// </summary>
         /// <param name="call_id"></param>
         /// <param name="extension"></param>
@@ -2634,6 +2649,7 @@ namespace WDMsgServer
                     {
                         call_start = result_time.ToString("yyyyMMddHHmmss");
                         logWrite("call_start = " + call_start);
+
                         CallLogTable[call_id] = result_time;
 
                         parameters.Add("@com_cd", com_code);
@@ -2645,33 +2661,16 @@ namespace WDMsgServer
                         parameters.Add("@call_id", call_id);
                         parameters.Add("@userid", user);
 
-                        if (server_type.Equals(ConstDef.NIC_LG_KP))
-                        {
-                            parameters.Add("@pbx_type", "1");
-                        }
-                        else if (server_type.Equals(ConstDef.NIC_SIP))
-                        {
-                            parameters.Add("@pbx_type", "2");
-                        }
-                        else
-                        {
-                            parameters.Add("@pbx_type", "3");
-                        }
-
+                        if (server_type.Equals(ConstDef.NIC_LG_KP))    { parameters.Add("@pbx_type", "1"); }
+                        else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
+                        else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
+                        
                         string query = "insert into t_call_history" +
                         "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
                         "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
 
-                        int count = DoExecute(query, parameters);
-
-                        if (count != 0)
-                        {
-                            logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !");
-                        }
-                        else
-                        {
-                            logWrite("insertCallLog2 실패: " + call_id);
-                        }
+                        if (DoExecute(query, parameters) > 0) { logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !"); }
+                        else /*        result ==0       */    { logWrite("insertCallLog2 실패: " + call_id);                       }
                     }
                     else
                     {
@@ -2696,33 +2695,16 @@ namespace WDMsgServer
                         parameters.Add("@call_id", call_id);
                         parameters.Add("@userid", user);
 
-                        if (server_type.Equals(ConstDef.NIC_LG_KP))
-                        {
-                            parameters.Add("@pbx_type", "1");
-                        }
-                        else if (server_type.Equals(ConstDef.NIC_SIP))
-                        {
-                            parameters.Add("@pbx_type", "2");
-                        }
-                        else
-                        {
-                            parameters.Add("@pbx_type", "3");
-                        }
-
+                        if (server_type.Equals(ConstDef.NIC_LG_KP)) { parameters.Add("@pbx_type", "1"); }
+                        else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
+                        else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
+                        
                         string query = "insert into t_call_history" +
                         "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
                         "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
 
-                        int count = DoExecute(query, parameters);
-
-                        if (count != 0)
-                        {
-                            logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !");
-                        }
-                        else
-                        {
-                            logWrite("insertCallLog2 실패: " + call_id);
-                        }
+                        if (DoExecute(query, parameters) > 0) { logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !"); }
+                        else /*        result ==0          */ { logWrite("insertCallLog2 실패: " + call_id); }
                     }
                 }
                 else if (call_result.Equals("5"))//released
@@ -2750,33 +2732,16 @@ namespace WDMsgServer
                         parameters.Add("@userid", user);
                         parameters.Add("@duration", call_duration);
 
-                        if (server_type.Equals(ConstDef.NIC_LG_KP))
-                        {
-                            parameters.Add("@pbx_type", "1");
-                        }
-                        else if (server_type.Equals(ConstDef.NIC_SIP))
-                        {
-                            parameters.Add("@pbx_type", "2");
-                        }
-                        else
-                        {
-                            parameters.Add("@pbx_type", "3");
-                        }
+                        if (server_type.Equals(ConstDef.NIC_LG_KP)) { parameters.Add("@pbx_type", "1"); }
+                        else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
+                        else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
 
                         string query = "insert into t_call_history" +
                         "(COM_CD, TONG_START_TIME, TONG_END_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, TONG_DURATION, PBX_TYPE) " +
                         "VALUE(@com_cd, @starttime, @endtime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @duration, @pbx_type)";
 
-                        int count = DoExecute(query, parameters);
-
-                        if (count != 0)
-                        {
-                            logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !");
-                        }
-                        else
-                        {
-                            logWrite("insertCallLog2 실패: " + call_id);
-                        }
+                        if (DoExecute(query, parameters) > 0) { logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !"); }
+                        else /*        result ==0          */ { logWrite("insertCallLog2 실패: " + call_id); }
                     }
                 }
 
@@ -2788,7 +2753,21 @@ namespace WDMsgServer
         }
 
         /// <summary>
-        /// Answer인 경우만 해당
+        /// 콜로그 등로: Answer인 경우만 해당
+        /// ---------------------------------
+        /// call_result
+        /// 1: EventRinging
+        /// 2: EventDialing
+        /// 3: EventEstablished
+        /// 4: EventAbandoned
+        /// 5: EventReleased
+        /// ---------------------------------
+        /// call_type
+        /// 1:인바운드
+        /// 2:아웃바운드
+        /// 3:내선통화
+        /// 4:기타
+        /// ---------------------------------
         /// </summary>
         /// <param name="call_id"></param>
         /// <param name="extension"></param>
@@ -2820,33 +2799,16 @@ namespace WDMsgServer
                     parameters.Add("@call_id", call_id);
                     parameters.Add("@userid", user);
 
-                    if (server_type.Equals(ConstDef.NIC_LG_KP))
-                    {
-                        parameters.Add("@pbx_type", "1");
-                    }
-                    else if (server_type.Equals(ConstDef.NIC_SIP))
-                    {
-                        parameters.Add("@pbx_type", "2");
-                    }
-                    else
-                    {
-                        parameters.Add("@pbx_type", "3");
-                    }
+                    if (server_type.Equals(ConstDef.NIC_LG_KP)) { parameters.Add("@pbx_type", "1"); }
+                    else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
+                    else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
 
                     string query = "insert into t_call_history" +
                     "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
                     "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
 
-                    int count = DoExecute(query, parameters);
-
-                    if (count != 0)
-                    {
-                        logWrite("insertCallLog3 : " + call_id + " Call Log DB Insert !");
-                    }
-                    else
-                    {
-                        logWrite("insertCallLog3 실패: " + call_id);
-                    }
+                    if (DoExecute(query, parameters) > 0) { logWrite("insertCallLog3 : " + call_id + " Call Log DB Insert !"); }
+                    else /*        result ==0          */ { logWrite("insertCallLog3 실패: " + call_id); }
 
                 }
             }
@@ -2856,6 +2818,27 @@ namespace WDMsgServer
             }
         }
 
+        /// <summary>
+        /// 콜로그 등록:Ringing/Dialing등 최초등록 건인 경우
+        /// 
+        /// call_result
+        /// 1: EventRinging
+        /// 2: EventDialing
+        /// 3: EventEstablished
+        /// 4: EventAbandoned
+        /// 5: EventReleased
+        /// 
+        /// call_type
+        /// 1:인바운드
+        /// 2:아웃바운드
+        /// 3:내선통화
+        /// 4:기타
+        /// </summary>
+        /// <param name="ext"></param>
+        /// <param name="ani"></param>
+        /// <param name="call_type"></param>
+        /// <param name="call_id"></param>
+        /// <param name="call_result"></param>
         private void insertCallLog(string ext, string ani, string call_type, string call_id, string call_result)
         {
             try
