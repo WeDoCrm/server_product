@@ -755,7 +755,7 @@ namespace WDMsgServer
             try
             {
 
-                string query = "select C.CUSTOMER_NM, C.C_TELNO, C.H_TELNO, C.C_TELNO1, C.H_TELNO1, D.TELNO " +
+                string query = "select C.CUSTOMER_ID, C.CUSTOMER_NM, C.C_TELNO, C.H_TELNO, C.C_TELNO1, C.H_TELNO1, D.TELNO " +
                     "FROM t_customer C LEFT JOIN " +
                     "(SELECT B.TELNO, A.CUSTOMER_NM FROM t_customer A, t_customer_telno B WHERE A.CUSTOMER_ID=B.CUSTOMER_ID GROUP BY B.TELNO) D " +
                     "ON C.CUSTOMER_NM=D.CUSTOMER_NM";
@@ -764,21 +764,14 @@ namespace WDMsgServer
                 
                 if (dr != null && dr.HasRows)
                 {
+                    string cName = "";
+
                     while (dr.Read())
                     {
-
-                        string cName = dr.GetString(0);
+                        cName = dr.GetString(0) + "$"+dr.GetString(1);
 
                         if (dr.FieldCount > 5)
                         {
-                            if (!dr.IsDBNull(1))
-                            {
-                                if (dr.GetString(1).Length > 1)
-                                {
-                                    CustomerList_Primary[dr.GetString(1)] = cName;
-                                    CustomerList_Backup[dr.GetString(1)] = cName;
-                                }
-                            }
                             if (!dr.IsDBNull(2))
                             {
                                 if (dr.GetString(2).Length > 1)
@@ -809,6 +802,14 @@ namespace WDMsgServer
                                 {
                                     CustomerList_Primary[dr.GetString(5)] = cName;
                                     CustomerList_Backup[dr.GetString(5)] = cName;
+                                }
+                            }
+                            if (!dr.IsDBNull(6))
+                            {
+                                if (dr.GetString(6).Length > 1)
+                                {
+                                    CustomerList_Primary[dr.GetString(6)] = cName;
+                                    CustomerList_Backup[dr.GetString(6)] = cName;
                                 }
                             }
                         }
@@ -834,7 +835,7 @@ namespace WDMsgServer
             MySqlDataReader dr = null;
             try
             {
-                string query = "select C.CUSTOMER_NM, C.C_TELNO, C.H_TELNO, C.C_TELNO1, C.H_TELNO1, D.TELNO " +
+                string query = "select C.CUSTOMER_ID, C.CUSTOMER_NM, C.C_TELNO, C.H_TELNO, C.C_TELNO1, C.H_TELNO1, D.TELNO " +
                     "FROM " +
                     "t_customer C LEFT JOIN " +
                     "(SELECT B.TELNO, A.CUSTOMER_NM FROM t_customer A, t_customer_telno B WHERE A.CUSTOMER_ID=B.CUSTOMER_ID GROUP BY B.TELNO) D " +
@@ -851,15 +852,8 @@ namespace WDMsgServer
 
                         while (dr.Read())
                         {
-                            cName = dr.GetString(0);
+                            cName = dr.GetString(0) + "$" + dr.GetString(1);
 
-                            if (!dr.IsDBNull(1))
-                            {
-                                if (dr.GetString(1).Length > 1)
-                                {
-                                    CustomerList_Backup[dr.GetString(1)] = cName;
-                                }
-                            }
                             if (!dr.IsDBNull(2))
                             {
                                 if (dr.GetString(2).Length > 1)
@@ -888,6 +882,13 @@ namespace WDMsgServer
                                     CustomerList_Backup[dr.GetString(5)] = cName;
                                 }
                             }
+                            if (!dr.IsDBNull(6))
+                            {
+                                if (dr.GetString(6).Length > 1)
+                                {
+                                    CustomerList_Backup[dr.GetString(6)] = cName;
+                                }
+                            }
                         }
                         //foreach (DictionaryEntry de in CustomerList_Backup)
                         //{
@@ -900,15 +901,8 @@ namespace WDMsgServer
                     {
                         while (dr.Read())
                         {
-                            cName = dr.GetString(0);
+                            cName = dr.GetString(0) + "$" + dr.GetString(1);
 
-                            if (!dr.IsDBNull(1))
-                            {
-                                if (dr.GetString(1).Length > 1)
-                                {
-                                    CustomerList_Primary[dr.GetString(1)] = cName;
-                                }
-                            }
                             if (!dr.IsDBNull(2))
                             {
                                 if (dr.GetString(2).Length > 1)
@@ -935,6 +929,13 @@ namespace WDMsgServer
                                 if (dr.GetString(5).Length > 1)
                                 {
                                     CustomerList_Primary[dr.GetString(5)] = cName;
+                                }
+                            }
+                            if (!dr.IsDBNull(6))
+                            {
+                                if (dr.GetString(6).Length > 1)
+                                {
+                                    CustomerList_Primary[dr.GetString(6)] = cName;
                                 }
                             }
                         }
@@ -2196,6 +2197,11 @@ namespace WDMsgServer
                             logWrite("Internal Call Event");
                             return;
                         }
+                        //이슈: 내선호전환때도 팝업가능하도록
+                        //옆의사람이 당겨받을때 팝업도 같이 되어야 한다.
+                        //원래 다음과 같이 전화옴 01042047723 -> 07033332222
+                        //01042047723 -> 07033332224
+                        //
 
                         switch (sEvent)
                         {
@@ -2223,9 +2229,6 @@ namespace WDMsgServer
                                         {
                                             CallLogTable[infoarr[2]] = "Ringing";  //중복방지
                                             
-                                            userid = GetUserNameByExtension(infoarr[1]);
-                                            
-                                            //insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "1");
                                             insertCallLog(infoarr[1], infoarr[0], "1", infoarr[2], "1");
                                         }
                                     }
@@ -2343,47 +2346,32 @@ namespace WDMsgServer
                                 if (CallLogTable.ContainsKey(infoarr[2]))
                                 {
                                     logWrite("통화종료 이벤트!");
-
-                                    if (ExtensionList.Count > 0)
+                                    //From이 로그인 상태인 경우
+                                    if ((ExtensionList.Count > 0) && ExtensionList.ContainsKey(infoarr[0]))
                                     {
-                                        if (ExtensionList.ContainsKey(infoarr[0])) //FROM == 사용자일 경우
-                                        {
-                                            userid = GetUserNameByExtension(infoarr[0]);
+                                        userid = GetUserNameByExtension(infoarr[0]);
 
-                                            insertCallLog2(infoarr[2], infoarr[0], infoarr[1], userid, "2", "5");
-                                        }
-                                        else if (ExtensionList.ContainsKey(infoarr[1])) //TO == 사용자일 경우
-                                        {
-                                            userid = GetUserNameByExtension(infoarr[1]);
-
-                                            insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "5");
-                                        }
-                                        else
-                                        {
-                                            int numlen = infoarr[0].Length - infoarr[1].Length; //리스트에 없는 경우(해당 내선사용자 로그아웃) 짧은 번호를 사용자로 판단
-                                            if (numlen > 0)
-                                            {
-                                                userid = GetUserNameByExtension(infoarr[1]);
-
-                                                insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "5");
-                                            }
-                                            else
-                                            {
-                                                userid = GetUserNameByExtension(infoarr[0]);
-
-                                                insertCallLog2(infoarr[2], infoarr[0], infoarr[1], userid, "2", "5");
-                                            }
-                                        }
+                                        insertCallLog2(infoarr[2], infoarr[0], infoarr[1], userid, "2", "5");
                                     }
+                                    //From이 외부또는 로그아웃, To가 로그인인 경우
+                                    else if ((ExtensionList.Count > 0) && ExtensionList.ContainsKey(infoarr[1])) //TO == 사용자일 경우
+                                    {
+                                        userid = GetUserNameByExtension(infoarr[1]);
+
+                                        insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "5");
+                                    }
+                                    //From, To모두 외부또는 로그아웃인경우
                                     else
                                     {
                                         int numlen = infoarr[0].Length - infoarr[1].Length; //리스트에 없는 경우(해당 내선사용자 로그아웃) 짧은 번호를 사용자로 판단
+                                        //자릿수로 판단하여 To가 내선인 경우
                                         if (numlen > 0)
                                         {
                                             userid = GetUserNameByExtension(infoarr[1]);
 
                                             insertCallLog2(infoarr[2], infoarr[1], infoarr[0], userid, "1", "5");
                                         }
+                                        //자릿수로 판단하여 From이 내선인 경우
                                         else
                                         {
                                             userid = GetUserNameByExtension(infoarr[0]);
@@ -2391,6 +2379,7 @@ namespace WDMsgServer
                                             insertCallLog2(infoarr[2], infoarr[0], infoarr[1], userid, "2", "5");
                                         }
                                     }
+                           
                                 }
                                 else
                                 {
@@ -2402,6 +2391,7 @@ namespace WDMsgServer
                 }
                 #endregion //NIC_SIP
                 #region NIC_LG_KP
+                //KP은 Ringing/Answer만 존재
                 else if(server_type.Equals(ConstDef.NIC_LG_KP)) //CID 장치 또는 KEYPHONE
                 {
                     logWrite("Event : " + sEvent + "  sInfo : " + sInfo + "\r\n");
@@ -2410,7 +2400,7 @@ namespace WDMsgServer
                     switch (sEvent)
                     {
                         case "Ringing":
-
+                            //전체 로그인사용자에게 전달하고 "all"로 로그남김
                             string cname = "";
                             cname = getCustomerNM(sInfo);
                             logWrite("고객이름 : " + cname);
@@ -2431,7 +2421,9 @@ namespace WDMsgServer
                             break;
 
                         case "Answer":
-
+                            //1. 인입호를 다른 클라이언트가 수신한것으로 처리
+                            //2. 수신한 내선번호에 Answer로 처리
+                            //3. CallLogTable에 해당ani값이 있는지 확인후 insertCallLog3하고 CallLogTable에서 제거 
 
                             if (infoarr.Length > 1)
                             {
@@ -2476,6 +2468,9 @@ namespace WDMsgServer
                 }
                 #endregion
                 #region NIC_CID
+                //CID 1포트는 Ringing/OffHook/OnHook 모두 존재하나, 
+                //CID 2,4포트는 Ringing 만 존재
+                //CID는 발신번호만 알수있다. 내선번호가 존재하지 않음.
                 else if (server_type.Equals(ConstDef.NIC_CID_PORT1)
                     || server_type.Equals(ConstDef.NIC_CID_PORT2)
                     || server_type.Equals(ConstDef.NIC_CID_PORT4))
@@ -2487,7 +2482,8 @@ namespace WDMsgServer
                     {
 
                         case "Ringing" :
-
+                            //로그인사용자 모두에게 ringing전달
+                            //all로 insertCallLog남김
                             string cname = "";
                             cname = getCustomerNM(sInfo);
                             logWrite("고객이름 : " + cname);
@@ -2508,7 +2504,9 @@ namespace WDMsgServer
                             break;
 
                         case "OffHook" :
-
+                            //1. 인입호를 다른 클라이언트가 수신한것으로 처리
+                            //2. CallLogTable에 해당ani값이 있는지 확인후 insertCallLog3하고 CallLogTable에서 제거 
+                            //3. 로그인사용자 모두에게 answer처리 => 고객팝업
                             foreach (DictionaryEntry de in InClientList)
                             {
                                 if (de.Value != null)
@@ -2521,11 +2519,16 @@ namespace WDMsgServer
                             {
                                 foreach (DictionaryEntry logitem in CallLogTable)
                                 {
-                                    foreach (DictionaryEntry clientItem in InClientList)
+                                    //해당 ani에 대해서만 처리
+                                    if (logitem.Value.ToString().Equals(infoarr[0]))
                                     {
-                                        if (clientItem.Value != null)
+                                        //로그인사용자 모두에게 answer처리 => 고객팝업
+                                        foreach (DictionaryEntry clientItem in InClientList)
                                         {
-                                            SendMsg("Answer|" + logitem.Value.ToString() + "|" + "1", (IPEndPoint)clientItem.Value);
+                                            if (clientItem.Value != null)
+                                            {
+                                                SendMsg("Answer|" + logitem.Value.ToString() + "|" + "1", (IPEndPoint)clientItem.Value);
+                                            }
                                         }
                                     }
 
@@ -2580,6 +2583,15 @@ namespace WDMsgServer
 
         private string getCustomerNM(string ani)
         {
+            string value = getCustomerInfo(ani);
+            string[] valArr = value.Split('$');
+            return valArr[1];
+        }
+
+
+
+        private string getCustomerInfo(string ani)
+        {
             string cname = "";
             try
             {
@@ -2609,230 +2621,22 @@ namespace WDMsgServer
         }
 
         /// <summary>
-        /// 콜로그 등록
-        /// answer/Hangup/abandon인 경우
-        /// ---------------------------------
-        /// call_result
-        /// 1: EventRinging
-        /// 2: EventDialing
-        /// 3: EventEstablished
-        /// 4: EventAbandoned
-        /// 5: EventReleased
-        /// ---------------------------------
-        /// call_type
-        /// 1:인바운드
-        /// 2:아웃바운드
-        /// 3:내선통화
-        /// 4:기타
-        /// ---------------------------------
-        /// </summary>
-        /// <param name="call_id"></param>
-        /// <param name="extension"></param>
-        /// <param name="ani"></param>
-        /// <param name="user"></param>
-        /// <param name="call_type"></param>
-        /// <param name="call_result"></param>
-        private void insertCallLog2(string call_id, string extension, string ani, string user, string call_type, string call_result) //Answer or HangUp or Abandon
-        {
-            try
-            {
-                DateTime start_time = new DateTime();
-                string call_start = "";
-                string call_end = "";
-                int call_duration = 0;
-                DateTime result_time = DateTime.Now;
-                Hashtable parameters = new Hashtable();
-
-                if (call_result.Equals("3")) // answer
-                {
-                    if (CallLogTable.ContainsKey(call_id))
-                    {
-                        call_start = result_time.ToString("yyyyMMddHHmmss");
-                        logWrite("call_start = " + call_start);
-
-                        CallLogTable[call_id] = result_time;
-
-                        parameters.Add("@com_cd", com_code);
-                        parameters.Add("@starttime", call_start);
-                        parameters.Add("@ext_num", extension);
-                        parameters.Add("@call_type", call_type);
-                        parameters.Add("@call_result", call_result);
-                        parameters.Add("@ani", ani);
-                        parameters.Add("@call_id", call_id);
-                        parameters.Add("@userid", user);
-
-                        if (server_type.Equals(ConstDef.NIC_LG_KP))    { parameters.Add("@pbx_type", "1"); }
-                        else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
-                        else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
-                        
-                        string query = "insert into t_call_history" +
-                        "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
-                        "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
-
-                        if (DoExecute(query, parameters) > 0) { logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !"); }
-                        else /*        result ==0       */    { logWrite("insertCallLog2 실패: " + call_id);                       }
-                    }
-                    else
-                    {
-                        logWrite("CallLogTable 에 해당 키 없음 : " + call_id);
-                    }
-                }
-                else if (call_result.Equals("4")) // abandon
-                {
-                    call_start = result_time.ToString("yyyyMMddHHmmss");
-                    logWrite("call_start = " + call_start);
-                    
-                    if (CallLogTable.ContainsKey(call_id))
-                    {
-                        CallLogTable.Remove(call_id);
-
-                        parameters.Add("@com_cd", com_code);
-                        parameters.Add("@starttime", call_start);
-                        parameters.Add("@ext_num", extension);
-                        parameters.Add("@call_type", call_type);
-                        parameters.Add("@call_result", call_result);
-                        parameters.Add("@ani", ani);
-                        parameters.Add("@call_id", call_id);
-                        parameters.Add("@userid", user);
-
-                        if (server_type.Equals(ConstDef.NIC_LG_KP)) { parameters.Add("@pbx_type", "1"); }
-                        else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
-                        else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
-                        
-                        string query = "insert into t_call_history" +
-                        "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
-                        "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
-
-                        if (DoExecute(query, parameters) > 0) { logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !"); }
-                        else /*        result ==0          */ { logWrite("insertCallLog2 실패: " + call_id); }
-                    }
-                }
-                else if (call_result.Equals("5"))//released
-                {
-                    call_end = result_time.ToString("yyyyMMddHHmmss");
-                    logWrite("call_end = " + call_end);
-
-                    if (CallLogTable.ContainsKey(call_id))
-                    {
-                        start_time = (DateTime)CallLogTable[call_id];
-                        call_start = start_time.ToString("yyyyMMddHHmmss");
-                        logWrite("call_start = " + call_start);
-                        CallLogTable.Remove(call_id);
-
-                        call_duration = (result_time - start_time).Seconds;
-
-                        parameters.Add("@com_cd", com_code);
-                        parameters.Add("@starttime", call_start);
-                        parameters.Add("@endtime", call_end);
-                        parameters.Add("@ext_num", extension);
-                        parameters.Add("@call_type", call_type);
-                        parameters.Add("@call_result", call_result);
-                        parameters.Add("@ani", ani);
-                        parameters.Add("@call_id", call_id);
-                        parameters.Add("@userid", user);
-                        parameters.Add("@duration", call_duration);
-
-                        if (server_type.Equals(ConstDef.NIC_LG_KP)) { parameters.Add("@pbx_type", "1"); }
-                        else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
-                        else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
-
-                        string query = "insert into t_call_history" +
-                        "(COM_CD, TONG_START_TIME, TONG_END_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, TONG_DURATION, PBX_TYPE) " +
-                        "VALUE(@com_cd, @starttime, @endtime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @duration, @pbx_type)";
-
-                        if (DoExecute(query, parameters) > 0) { logWrite("insertCallLog2 : " + call_id + " Call Log DB Insert !"); }
-                        else /*        result ==0          */ { logWrite("insertCallLog2 실패: " + call_id); }
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-                logWrite("insertCallLog2 Exception : " + ex.ToString());
-            }
-        }
-
-        /// <summary>
-        /// 콜로그 등로: Answer인 경우만 해당
-        /// ---------------------------------
-        /// call_result
-        /// 1: EventRinging
-        /// 2: EventDialing
-        /// 3: EventEstablished
-        /// 4: EventAbandoned
-        /// 5: EventReleased
-        /// ---------------------------------
-        /// call_type
-        /// 1:인바운드
-        /// 2:아웃바운드
-        /// 3:내선통화
-        /// 4:기타
-        /// ---------------------------------
-        /// </summary>
-        /// <param name="call_id"></param>
-        /// <param name="extension"></param>
-        /// <param name="ani"></param>
-        /// <param name="user"></param>
-        /// <param name="call_type"></param>
-        /// <param name="call_result"></param>
-        private void insertCallLog3(string call_id, string extension, string ani, string user, string call_type, string call_result) //Answer or HangUp or Abandon
-        {
-            try
-            {
-                DateTime start_time = new DateTime();
-                string call_start = DateTime.Now.ToString("yyyyMMddHHmmss");
-                string call_end = "";
-                int call_duration = 0;
-                DateTime result_time = DateTime.Now;
-
-                Hashtable parameters = new Hashtable();
-
-                if (call_result.Equals("3")) // answer
-                {
-
-                    parameters.Add("@com_cd", com_code);
-                    parameters.Add("@starttime", call_start);
-                    parameters.Add("@ext_num", extension);
-                    parameters.Add("@call_type", call_type);
-                    parameters.Add("@call_result", call_result);
-                    parameters.Add("@ani", ani);
-                    parameters.Add("@call_id", call_id);
-                    parameters.Add("@userid", user);
-
-                    if (server_type.Equals(ConstDef.NIC_LG_KP)) { parameters.Add("@pbx_type", "1"); }
-                    else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
-                    else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
-
-                    string query = "insert into t_call_history" +
-                    "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
-                    "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
-
-                    if (DoExecute(query, parameters) > 0) { logWrite("insertCallLog3 : " + call_id + " Call Log DB Insert !"); }
-                    else /*        result ==0          */ { logWrite("insertCallLog3 실패: " + call_id); }
-
-                }
-            }
-            catch (Exception ex)
-            {
-                logWrite("insertCallLog3 Exception : " + ex.ToString());
-            }
-        }
-
-        /// <summary>
-        /// 콜로그 등록:Ringing/Dialing등 최초등록 건인 경우
+        /// ------------
+        /// 콜통계 처리
+        /// ------------
+        /// 1. ringing -> 정상등록(customer_id, customer_nm포함)
+        /// 2. abandon -> SIP :  call_result update (call_id가 키)
+        /// 3. answer  -> SIP :  start_time , call_result, tong_user update (call_id가 키)
+        ///               KP  :  start_time , call_result, tong_user, ext update (ani,start_time이 키, 가장 최근것) 
+        ///               CID :  start_time , call_result   update (ani,start_time이 키, 가장 최근것) 
+        /// 4. hangup  -> SIP :  start_time , end_time, duration, call_result update (call_id가 키)              
+        /// 5. 상담완료-> *   :  consult_dd, consult_time update (ani, start_time이 키, answer인것 가장 최근것)
+        /// --------------------------------
         /// 
-        /// call_result
-        /// 1: EventRinging
-        /// 2: EventDialing
-        /// 3: EventEstablished
-        /// 4: EventAbandoned
-        /// 5: EventReleased
-        /// 
-        /// call_type
-        /// 1:인바운드
-        /// 2:아웃바운드
-        /// 3:내선통화
-        /// 4:기타
+        /// 1.콜로그 등록:Ringing/Dialing등 최초등록 건인 경우
+        /// 2.콜통계 등록
+        /// call_result(1: Ringing, 2: Dialing, 3: Answer, 4: Abandon, 5: Hangup)
+        /// call_type  (1:인바운드, 2:아웃바운드, 3:내선통화, 4:기타 )
         /// </summary>
         /// <param name="ext"></param>
         /// <param name="ani"></param>
@@ -2864,22 +2668,284 @@ namespace WDMsgServer
                 "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, PBX_TYPE) " +
                 "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @pbx_type)";
 
-                int count = DoExecute(query, parameters);
+                if (DoExecute(query, parameters) < 1)
+                {
+                    logWrite("insertCallLog 실패: " + call_id + " 콜로그 등록");
+                    throw new Exception("insertCallLog 실패: " + call_id);
+                }
 
-                if (count != 0)
+                logWrite("insertCallLog : " + call_id + " 콜로그 등록"); 
+
+                //콜통계등록
+                string value = getCustomerInfo(ani);
+                string[] valArr = value.Split('$');
+                string customerId = valArr[0];
+                string customerName = valArr[1];
+
+                parameters.Add("@customer_id", customerId);
+                parameters.Add("@customer_nm", customerName);
+
+                query = "insert into t_call_history_stat" +
+                "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, PBX_TYPE, CUSTOMER_ID, CUSTOMER_NM) " +
+                "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @pbx_type, @customer_id, @customer_nm)";
+
+                if (DoExecute(query, parameters) < 1)
                 {
-                    logWrite("insertCallLog : " + call_id + " Call Log DB Insert !");
+                    logWrite("insertCallLog 실패: " + call_id + " 콜통계 등록");
+                    throw new Exception("insertCallLog 실패: " + call_id);
                 }
-                else
-                {
-                    logWrite("insertCallLog 실패: " + call_id + " Call Log DB Insert !");
-                }
+
+                logWrite("insertCallLog : " + call_id + " 콜통계 등록"); 
+
             }
             catch (Exception ex)
             {
                 logWrite("insertCallLog Exception : " + ex.ToString());
             }
 
+        }
+
+        /// <summary>
+        /// 1.콜로그 등록
+        /// 2.콜통계 등록
+        /// SIP answer/Hangup/abandon인 경우
+        /// --------------------------------------------------------------------
+        /// call_result(1: Ringing, 2: Dialing, 3: Answer, 4: Abandon, 5: Hangup)
+        /// call_type  (1:인바운드, 2:아웃바운드, 3:내선통화, 4:기타 )
+        /// </summary>
+        /// <param name="call_id"></param>
+        /// <param name="extension"></param>
+        /// <param name="ani"></param>
+        /// <param name="user"></param>
+        /// <param name="call_type"></param>
+        /// <param name="call_result"></param>
+        private void insertCallLog2(string call_id, string extension, string ani, string user, string call_type, string call_result) //Answer or HangUp or Abandon
+        {
+            try
+            {
+                DateTime start_time = new DateTime();
+                string call_start = "";
+                string call_end = "";
+                int call_duration = 0;
+                DateTime result_time = DateTime.Now;
+                Hashtable parameters = new Hashtable();
+
+                parameters.Add("@com_cd", com_code);
+                parameters.Add("@ext_num", extension);
+                parameters.Add("@call_type", call_type);
+                parameters.Add("@call_result", call_result);
+                parameters.Add("@ani", ani);
+                parameters.Add("@call_id", call_id);
+                parameters.Add("@userid", user);
+
+                if (server_type.Equals(ConstDef.NIC_LG_KP)) { parameters.Add("@pbx_type", "1"); }
+                else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
+                else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
+
+                
+                if (call_result.Equals("3")) // answer
+                {
+                    if (CallLogTable.ContainsKey(call_id))
+                    {
+                        call_start = result_time.ToString("yyyyMMddHHmmss");
+                        logWrite("call_start = " + call_start);
+
+                        CallLogTable[call_id] = result_time;
+
+                        parameters.Add("@starttime", call_start);
+                        
+                        string query = "insert into t_call_history" +
+                        "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
+                        "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
+
+                        if (DoExecute(query, parameters) < 1)
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id + " 콜로그 등록");
+                            throw new Exception("insertCallLog2 실패: " + call_id);
+                        }
+
+                        logWrite("insertCallLog2 : " + call_id + " 콜로그 등록");
+
+                        //콜통계등록
+                        query = "update t_call_history_stat" +
+                        " set TONG_START_TIME=@starttime, CALL_RESULT=@call_result, TONG_USER=@userid " +
+                        "where CALL_ID=@call_id";
+
+                        if (DoExecute(query, parameters) < 1)
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id + " 콜통계 갱신");
+                            throw new Exception("insertCallLog2 실패: " + call_id);
+                        }
+
+                        logWrite("insertCallLog2 : " + call_id + " 콜통계 갱신"); 
+
+                    }
+                    else
+                    {
+                        logWrite("CallLogTable 에 해당 키 없음 : " + call_id);
+                    }
+                }
+                else if (call_result.Equals("4")) // abandon
+                {
+                    call_start = result_time.ToString("yyyyMMddHHmmss");
+                    logWrite("call_start = " + call_start);
+                    
+                    if (CallLogTable.ContainsKey(call_id))
+                    {
+                        CallLogTable.Remove(call_id);
+
+                        parameters.Add("@starttime", call_start);
+                        
+                        string query = "insert into t_call_history" +
+                        "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
+                        "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
+
+                        if (DoExecute(query, parameters) < 1)
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id + " 콜로그 등록");
+                            throw new Exception("insertCallLog2 실패: " + call_id);
+                        }
+
+                        logWrite("insertCallLog2 : " + call_id + " 콜로그 등록");
+
+                        //콜통계등록
+                        query = "update t_call_history_stat" +
+                        " set CALL_RESULT=@call_result" +
+                        "where CALL_ID=@call_id";
+
+                        if (DoExecute(query, parameters) < 1)
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id + " 콜통계 갱신");
+                            throw new Exception("insertCallLog2 실패: " + call_id);
+                        }
+
+                        logWrite("insertCallLog2 : " + call_id + " 콜통계 갱신");
+                    }
+                }
+                else if (call_result.Equals("5"))//released
+                {
+                    call_end = result_time.ToString("yyyyMMddHHmmss");
+                    logWrite("call_end = " + call_end);
+
+                    if (CallLogTable.ContainsKey(call_id))
+                    {
+                        start_time = (DateTime)CallLogTable[call_id];
+                        call_start = start_time.ToString("yyyyMMddHHmmss");
+                        logWrite("call_start = " + call_start);
+                        CallLogTable.Remove(call_id);
+
+                        call_duration = (result_time - start_time).Seconds;
+
+                        parameters.Add("@starttime", call_start);
+                        parameters.Add("@endtime", call_end);
+                        parameters.Add("@duration", call_duration);
+
+                        string query = "insert into t_call_history" +
+                        "(COM_CD, TONG_START_TIME, TONG_END_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, TONG_DURATION, PBX_TYPE) " +
+                        "VALUE(@com_cd, @starttime, @endtime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @duration, @pbx_type)";
+
+                        if (DoExecute(query, parameters) < 1)
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id + " 콜로그 등록");
+                            throw new Exception("insertCallLog2 실패: " + call_id);
+                        }
+
+                        logWrite("insertCallLog2 : " + call_id + " 콜로그 등록");
+
+                        //콜통계등록
+                        query = "update t_call_history_stat" +
+                        " set TONG_END_TIME=@endtime, TONG_DURATION=@duration, CALL_RESULT=@call_result " +
+                        "where CALL_ID=@call_id";
+
+                        if (DoExecute(query, parameters) < 1)
+                        {
+                            logWrite("insertCallLog2 실패: " + call_id + " 콜통계 갱신");
+                            throw new Exception("insertCallLog2 실패: " + call_id);
+                        }
+
+                        logWrite("insertCallLog2 : " + call_id + " 콜통계 갱신");
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                logWrite("insertCallLog2 Exception : " + ex.ToString());
+            }
+        }
+
+        /// <summary>
+        /// 콜로그 등로: CID/KP 용 Answer일때 처리
+        /// SIP는 CallLogTable에서 call_id 를 검색
+        /// 
+        /// call_result(1: Ringing, 2: Dialing, 3: Answer, 4: Abandon, 5: Hangup)
+        /// call_type  (1:인바운드, 2:아웃바운드, 3:내선통화, 4:기타 )
+        /// </summary>
+        /// <param name="call_id"></param>
+        /// <param name="extension"></param>
+        /// <param name="ani"></param>
+        /// <param name="user"></param>
+        /// <param name="call_type"></param>
+        /// <param name="call_result"></param>
+        private void insertCallLog3(string call_id, string extension, string ani, string user, string call_type, string call_result) //Answer or HangUp or Abandon
+        {
+            try
+            {
+                string call_start = DateTime.Now.ToString("yyyyMMddHHmmss");
+                string call_end = "";
+                int call_duration = 0;
+                DateTime result_time = DateTime.Now;
+
+                Hashtable parameters = new Hashtable();
+
+                if (call_result.Equals("3")) // answer
+                {
+
+                    parameters.Add("@com_cd", com_code);
+                    parameters.Add("@starttime", call_start);
+                    parameters.Add("@ext_num", extension);
+                    parameters.Add("@call_type", call_type);
+                    parameters.Add("@call_result", call_result);
+                    parameters.Add("@ani", ani);
+                    parameters.Add("@call_id", call_id);
+                    parameters.Add("@userid", user);
+
+                    if (server_type.Equals(ConstDef.NIC_LG_KP)) { parameters.Add("@pbx_type", "1"); }
+                    else if (server_type.Equals(ConstDef.NIC_SIP)) { parameters.Add("@pbx_type", "2"); }
+                    else /*                CID                  */ { parameters.Add("@pbx_type", "3"); }
+
+                    string query = "insert into t_call_history" +
+                    "(COM_CD, TONG_START_TIME, EXTENSION_NO, CALL_TYPE, ANI, CALL_ID, CALL_RESULT, TONG_USER, PBX_TYPE) " +
+                    "VALUE(@com_cd, @starttime, @ext_num, @call_type, @ani, @call_id, @call_result, @userid, @pbx_type)";
+
+                    if (DoExecute(query, parameters) < 1)
+                    {
+                        logWrite("insertCallLog3 실패: " + call_id + " 콜로그 등록");
+                        throw new Exception("insertCallLog3 실패: " + call_id);
+                    }
+
+                    logWrite("insertCallLog3 : " + call_id + " 콜로그 등록");
+
+                    //콜통계등록  KP, CID 모두 포함
+                    query = "update t_call_history_stat"
+                    + " set TONG_START_TIME=@starttime, EXTENSION_NO=@ext_num, TONG_USER=@userid, CALL_RESULT=@call_result "
+                    +"where ANI=@ani"
+                    + "  and CALL_ID = (select max(CALL_ID) from t_call_history_stat where ANI=@ani and CALL_RESULT=1) ";
+
+                    if (DoExecute(query, parameters) < 1)
+                    {
+                        logWrite("insertCallLog3 실패: " + call_id + " 콜통계 갱신");
+                        throw new Exception("insertCallLog3 실패: " + call_id);
+                    }
+
+                    logWrite("insertCallLog3 : " + call_id + " 콜통계 갱신");
+
+                }
+            }
+            catch (Exception ex)
+            {
+                logWrite("insertCallLog3 Exception : " + ex.ToString());
+            }
         }
 
         private MySqlDataReader DoQuery(string query, Hashtable parameters)
